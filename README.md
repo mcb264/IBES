@@ -47,3 +47,4 @@ Suivre les instructions (connexion à ton compte Vercel, puis `vercel --prod` po
 - `components/ModeRougeSwitch.tsx` — bascule mode rouge
 - `lib/storage.ts` — persistance localStorage
 # IBES
+# IBES
