@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #1b1b1d;
+}
+
+::selection {
+  background-color: #e8a33d;
+  color: #1b1b1d;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+}
