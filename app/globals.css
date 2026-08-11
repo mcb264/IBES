@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #1b1b1d;
+  background-image:
+    radial-gradient(circle at 15% -10%, rgba(232, 163, 61, 0.10), transparent 42%),
+    radial-gradient(circle at 85% 0%, rgba(56, 208, 222, 0.08), transparent 40%),
+    radial-gradient(circle at 50% 120%, rgba(79, 167, 146, 0.08), transparent 45%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.012) 0px,
+      rgba(255, 255, 255, 0.012) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  background-attachment: fixed;
+}
+
+::selection {
+  background-color: #e8a33d;
+  color: #1b1b1d;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+}
