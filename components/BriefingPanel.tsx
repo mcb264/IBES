@@ -3,65 +3,25 @@
 import { BriefingData, TaskItem } from "@/lib/storage";
 import TaskPanel from "@/components/TaskPanel";
 
-function Field({ label, value, onChange, placeholder, done = false }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; done?: boolean; }) {
-  return (
-    <label className="block">
-      <span className="block text-xs font-mono uppercase tracking-widest text-muted mb-1.5">{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={`w-full bg-panel border border-white/10 rounded-md px-3 py-2.5 placeholder:text-muted/60 focus:ring-1 focus:ring-amber ${done ? "text-muted line-through" : "text-ink"}`} />
-    </label>
-  );
+function Field({ label, value, onChange, placeholder, done = false, disabled = false }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; done?: boolean; disabled?: boolean; }) {
+  return <label className="block"><span className="block text-xs font-mono uppercase tracking-widest text-muted mb-1.5">{label}</span><input disabled={disabled} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} className={`w-full bg-panel border border-white/10 rounded-md px-3 py-2.5 placeholder:text-muted/60 focus:ring-1 focus:ring-amber disabled:opacity-35 ${done?"text-muted line-through":"text-ink"}`}/></label>;
 }
 
-export default function BriefingPanel({ data, modeRouge, onChange }: { data: BriefingData; modeRouge: boolean; onChange: (b: BriefingData) => void; }) {
-  const set = (k: "p1" | "p2" | "p3" | "bonus" | "skip") => (v: string) => onChange({ ...data, [k]: v });
-  const togglePriority = (key: "p1Done" | "p2Done" | "p3Done") => onChange({ ...data, [key]: !data[key] });
-  const dateLabel = new Date(data.date + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-  const accent = modeRouge ? "text-alert" : "text-amber";
-
-  const priorities = [
-    { key: "p1", doneKey: "p1Done", label: "Priorité 1", placeholder: modeRouge ? "Obligation réelle" : undefined },
-    { key: "p2", doneKey: "p2Done", label: "Priorité 2", placeholder: modeRouge ? "Sommeil / récupération" : undefined },
-    { key: "p3", doneKey: "p3Done", label: "Priorité 3", placeholder: modeRouge ? "Une seule avancée utile" : undefined },
-  ] as const;
-
-  return (
-    <div className="space-y-6">
-      <p className="font-mono text-xs text-muted uppercase tracking-widest">{dateLabel}</p>
-
-      {modeRouge && (
-        <div className="rounded-md border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-alert">
-          Mode rouge : protège l'essentiel. Trois priorités maximum et trois tâches actives à la fois.
-        </div>
-      )}
-
-      <div className="space-y-4">
-        {priorities.map(({ key, doneKey, label, placeholder }, index) => (
-          <div key={key} className="flex items-end gap-3">
-            <button
-              type="button"
-              onClick={() => togglePriority(doneKey)}
-              aria-label={`${data[doneKey] ? "Rouvrir" : "Terminer"} ${label.toLowerCase()}`}
-              className={`mb-2.5 w-6 h-6 rounded border flex items-center justify-center shrink-0 transition-colors ${data[doneKey] ? "bg-teal border-teal text-graphite" : `bg-panel ${modeRouge ? "border-alert/60" : "border-amber/60"} text-transparent`}`}
-            >
-              ✓
-            </button>
-            <span className={`font-mono text-2xl leading-none pb-2.5 ${data[doneKey] ? "text-muted" : accent}`}>0{index + 1}</span>
-            <div className="flex-1">
-              <Field label={label} value={data[key]} onChange={set(key)} placeholder={placeholder} done={data[doneKey]} />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid sm:grid-cols-2 gap-4 pt-2">
-        <Field label="Si j'ai encore de l'énergie" value={data.bonus} onChange={set("bonus")} placeholder={modeRouge ? "Seulement si ça ne coûte presque rien" : undefined} />
-        <Field label="Je peux ignorer aujourd'hui" value={data.skip} onChange={set("skip")} />
-      </div>
-
-      <div className="pt-4 border-t border-white/10 space-y-3">
-        <span className="block text-xs font-mono uppercase tracking-widest text-muted">Tâches du jour</span>
-        <TaskPanel items={data.tasks} maxOpenTasks={modeRouge ? 3 : undefined} onChange={(tasks: TaskItem[]) => onChange({ ...data, tasks })} />
-      </div>
-    </div>
-  );
+export default function BriefingPanel({data,modeRouge,onChange}:{data:BriefingData;modeRouge:boolean;onChange:(b:BriefingData)=>void}){
+ const set=(k:"p1"|"p2"|"p3"|"bonus"|"skip")=>(v:string)=>onChange({...data,[k]:v});
+ const togglePriority=(key:"p1Done"|"p2Done"|"p3Done")=>onChange({...data,[key]:!data[key]});
+ const dateLabel=new Date(data.date+"T00:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+ const priorities=[
+  {key:"p1",doneKey:"p1Done",label:modeRouge?"Essentiel du jour":"Priorité 1",placeholder:modeRouge?"La seule chose qui doit vraiment avancer":undefined,disabled:false},
+  {key:"p2",doneKey:"p2Done",label:modeRouge?"Récupération / maintien":"Priorité 2",placeholder:modeRouge?"Dormir, manger, administratif indispensable…":undefined,disabled:false},
+  {key:"p3",doneKey:"p3Done",label:"Priorité 3",placeholder:undefined,disabled:modeRouge},
+ ] as const;
+ return <div className="space-y-6">
+  <p className="font-mono text-xs text-muted uppercase tracking-widest">{dateLabel}</p>
+  {modeRouge?<div className="rounded-md border border-alert/30 bg-alert/10 px-4 py-3 space-y-1"><p className="text-sm text-alert font-medium">Charge protégée</p><p className="text-xs text-muted">1 essentiel + 1 maintien/récupération. Priorité 3 coupée. 2 autres tâches actives maximum. Le bonus est désactivé.</p></div>:<div className="rounded-md border border-white/10 bg-panel/40 px-4 py-3"><p className="text-xs text-muted">Mode normal — 3 priorités, tâches libres, bonus, projets et planification disponibles.</p></div>}
+  <div className="space-y-4">{priorities.map(({key,doneKey,label,placeholder,disabled},index)=><div key={key} className={`flex items-end gap-3 ${disabled?"opacity-40":""}`}><button type="button" disabled={disabled||!data[key].trim()} onClick={()=>togglePriority(doneKey)} className={`mb-2.5 w-6 h-6 rounded border flex items-center justify-center shrink-0 ${data[doneKey]?"bg-teal border-teal text-graphite":`bg-panel ${modeRouge?"border-alert/60":"border-amber/60"} text-transparent`} disabled:cursor-not-allowed`}>✓</button><span className={`font-mono text-2xl leading-none pb-2.5 ${data[doneKey]?"text-muted":modeRouge?"text-alert":"text-amber"}`}>0{index+1}</span><div className="flex-1"><Field label={label} value={data[key]} onChange={set(key)} placeholder={placeholder} done={data[doneKey]} disabled={disabled}/></div></div>)}</div>
+  {!modeRouge&&<div className="grid sm:grid-cols-2 gap-4 pt-2"><Field label="Si j'ai encore de l'énergie" value={data.bonus} onChange={set("bonus")}/><Field label="Je peux ignorer aujourd'hui" value={data.skip} onChange={set("skip")}/></div>}
+  {modeRouge&&<Field label="Je peux ignorer aujourd'hui" value={data.skip} onChange={set("skip")} placeholder="Tout ce qui n'est pas essentiel aujourd'hui"/>}
+  <div className="pt-4 border-t border-white/10 space-y-3"><div><span className="block text-xs font-mono uppercase tracking-widest text-muted">{modeRouge?"Autres tâches indispensables":"Tâches du jour"}</span>{!modeRouge&&<p className="text-xs text-muted mt-1">Ajoute librement les actions nécessaires autour de tes priorités.</p>}</div><TaskPanel items={data.tasks} maxOpenTasks={modeRouge?2:undefined} onChange={(tasks:TaskItem[])=>onChange({...data,tasks})}/></div>
+ </div>;
 }
