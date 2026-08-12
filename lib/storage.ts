@@ -1,4 +1,5 @@
 export type Domain = "musique" | "esport" | "vie";
+export type CapacityLevel = "low" | "normal" | "high";
 export type TaskItem = { id: string; text: string; done: boolean; dueDate?: string; projectId?: string; carried?: boolean };
 export type Project = { id: string; name: string; goal: string; dueDate?: string; done: boolean };
 export type BriefingData = { date: string; p1: string; p2: string; p3: string; p1Done: boolean; p2Done: boolean; p3Done: boolean; bonus: string; skip: string; tasks: TaskItem[] };
@@ -8,6 +9,10 @@ export type ReviewDraft = { advanced: string; notDone: string; why: string; keep
 export type ReviewEntry = ReviewDraft & { id: string; savedAt: string; tasksDoneCount?: number; prioritiesDoneCount?: number };
 export type CompletedTask = { id: string; text: string; date: string; kind?: "priority" | "task"; priorityRank?: 1 | 2 | 3 };
 export type DomainState = { briefing: BriefingData; dump: DumpItem[]; projects: Project[]; completedThisWeek: CompletedTask[]; reviewDraft: ReviewDraft; reviewHistory: ReviewEntry[] };
+export type LoadSettings = { lowCapacity:number; normalCapacity:number; highCapacity:number; priorityWeight:number; taskWeight:number; urgentWeight:number; dueWeight:number };
+export type DailyCapacity = { date:string; level:CapacityLevel };
+
+export const DEFAULT_LOAD_SETTINGS:LoadSettings={lowCapacity:60,normalCapacity:100,highCapacity:140,priorityWeight:20,taskWeight:8,urgentWeight:12,dueWeight:15};
 
 export function localDateKey(date = new Date()): string { const y=date.getFullYear(); const m=String(date.getMonth()+1).padStart(2,"0"); const d=String(date.getDate()).padStart(2,"0"); return `${y}-${m}-${d}`; }
 function startOfCurrentWeek(): string { const date=new Date(); const day=date.getDay(); date.setHours(0,0,0,0); date.setDate(date.getDate()+(day===0?-6:1-day)); return localDateKey(date); }
@@ -16,15 +21,21 @@ export const emptyBriefing=():BriefingData=>({date:localDateKey(),p1:"",p2:"",p3
 export const emptyReviewDraft=():ReviewDraft=>({advanced:"",notDone:"",why:"",keep:"",change:"",next1:"",next2:"",next3:""});
 export const defaultDomainState=():DomainState=>({briefing:emptyBriefing(),dump:[],projects:[],completedThisWeek:[],reviewDraft:emptyReviewDraft(),reviewHistory:[]});
 
-export function workloadScore(state:DomainState):number{
+export function rawWorkload(state:DomainState,settings:LoadSettings):number{
  const b=state.briefing;
  const priorities=[b.p1,b.p2,b.p3].filter(Boolean).length;
  const openTasks=b.tasks.filter(t=>!t.done).length;
  const urgent=state.dump.filter(i=>i.category==="URGENT").length;
  const today=localDateKey();
- const dueSoon=state.projects.filter(p=>!p.done&&p.dueDate&&p.dueDate<=today).length;
- return Math.min(100,priorities*15+openTasks*8+urgent*12+dueSoon*15);
+ const due=state.projects.filter(p=>!p.done&&p.dueDate&&p.dueDate<=today).length;
+ return priorities*settings.priorityWeight+openTasks*settings.taskWeight+urgent*settings.urgentWeight+due*settings.dueWeight;
 }
+export function workloadBreakdown(state:DomainState,settings:LoadSettings){
+ const b=state.briefing; const priorities=[b.p1,b.p2,b.p3].filter(Boolean).length; const tasks=b.tasks.filter(t=>!t.done).length; const urgent=state.dump.filter(i=>i.category==="URGENT").length; const today=localDateKey(); const due=state.projects.filter(p=>!p.done&&p.dueDate&&p.dueDate<=today).length;
+ return {priorities,tasks,urgent,due,priorityPoints:priorities*settings.priorityWeight,taskPoints:tasks*settings.taskWeight,urgentPoints:urgent*settings.urgentWeight,duePoints:due*settings.dueWeight};
+}
+export function capacityValue(level:CapacityLevel,settings:LoadSettings){return level==="low"?settings.lowCapacity:level==="high"?settings.highCapacity:settings.normalCapacity;}
+export function workloadUsage(state:DomainState,settings:LoadSettings,level:CapacityLevel){const raw=rawWorkload(state,settings); const capacity=capacityValue(level,settings); return {raw,capacity,percent:capacity>0?Math.round((raw/capacity)*100):0};}
 
 export function syncWeeklyCompletedTasks(log:CompletedTask[],briefing:BriefingData):CompletedTask[]{
  const current=keepCurrentWeek(log).map(e=>({...e,kind:e.kind??"task" as const}));
@@ -55,5 +66,11 @@ export function loadDomainState(domain:Domain):DomainState{
 }
 export function saveDomainState(domain:Domain,state:DomainState){if(typeof window!=="undefined")window.localStorage.setItem(domainKey(domain),JSON.stringify(state));}
 const MODE_ROUGE_KEY="ibes:mode-rouge";
+const LOAD_SETTINGS_KEY="ibes:load-settings";
+const DAILY_CAPACITY_KEY="ibes:daily-capacity";
 export function loadModeRouge():boolean{return typeof window!=="undefined"&&window.localStorage.getItem(MODE_ROUGE_KEY)==="1";}
 export function saveModeRouge(active:boolean){if(typeof window!=="undefined")window.localStorage.setItem(MODE_ROUGE_KEY,active?"1":"0");}
+export function loadLoadSettings():LoadSettings{if(typeof window==="undefined")return DEFAULT_LOAD_SETTINGS;try{return {...DEFAULT_LOAD_SETTINGS,...JSON.parse(window.localStorage.getItem(LOAD_SETTINGS_KEY)||"{}")};}catch{return DEFAULT_LOAD_SETTINGS;}}
+export function saveLoadSettings(settings:LoadSettings){if(typeof window!=="undefined")window.localStorage.setItem(LOAD_SETTINGS_KEY,JSON.stringify(settings));}
+export function loadDailyCapacity():DailyCapacity|null{if(typeof window==="undefined")return null;try{const parsed=JSON.parse(window.localStorage.getItem(DAILY_CAPACITY_KEY)||"null");return parsed?.date===localDateKey()?parsed:null;}catch{return null;}}
+export function saveDailyCapacity(level:CapacityLevel){if(typeof window!=="undefined")window.localStorage.setItem(DAILY_CAPACITY_KEY,JSON.stringify({date:localDateKey(),level}));}
