@@ -32,10 +32,14 @@ export async function hydrateFromCloud() {
     const hasRemote = remote && Object.keys(remote).length > 0;
 
     if (hasRemote) {
+      let changed = false;
       for (const key of CLOUD_KEYS) {
-        if (remote[key] !== undefined) window.localStorage.setItem(key, remote[key]);
+        if (remote[key] !== undefined && window.localStorage.getItem(key) !== remote[key]) {
+          window.localStorage.setItem(key, remote[key]);
+          changed = true;
+        }
       }
-      return true;
+      return changed;
     }
 
     const local = snapshot();
