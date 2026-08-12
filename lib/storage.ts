@@ -51,8 +51,30 @@ export type DomainState = {
   reviewHistory: ReviewEntry[];
 };
 
+export function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function startOfCurrentWeek(): string {
+  const date = new Date();
+  const day = date.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + diffToMonday);
+  return localDateKey(date);
+}
+
+function keepCurrentWeek(tasks: CompletedTask[]): CompletedTask[] {
+  const monday = startOfCurrentWeek();
+  const today = localDateKey();
+  return tasks.filter((task) => task.date >= monday && task.date <= today);
+}
+
 export const emptyBriefing = (): BriefingData => ({
-  date: new Date().toISOString().slice(0, 10),
+  date: localDateKey(),
   p1: "",
   p2: "",
   p3: "",
@@ -80,16 +102,13 @@ export const defaultDomainState = (): DomainState => ({
   reviewHistory: [],
 });
 
-// Ajoute au log de la semaine les tâches qui viennent d'être cochées,
-// et retire celles qui viennent d'être décochées (pour la liste du jour
-// en cours seulement — les entrées des jours précédents restent intactes
-// puisque leurs ids ne sont plus dans le briefing actuel).
 export function syncWeeklyCompletedTasks(
   log: CompletedTask[],
   briefing: BriefingData
 ): CompletedTask[] {
+  const currentWeekLog = keepCurrentWeek(log);
   const idsInBriefing = new Set(briefing.tasks.map((t) => t.id));
-  const kept = log.filter((entry) => {
+  const kept = currentWeekLog.filter((entry) => {
     if (!idsInBriefing.has(entry.id)) return true;
     const t = briefing.tasks.find((task) => task.id === entry.id);
     return t?.done ?? false;
@@ -113,7 +132,8 @@ export function loadDomainState(domain: Domain): DomainState {
     const parsed = JSON.parse(raw);
     const state: DomainState = { ...defaultDomainState(), ...parsed };
     state.briefing = { ...emptyBriefing(), ...state.briefing };
-    const today = new Date().toISOString().slice(0, 10);
+    state.completedThisWeek = keepCurrentWeek(state.completedThisWeek ?? []);
+    const today = localDateKey();
     if (state.briefing.date !== today) {
       state.briefing = emptyBriefing();
     }
@@ -128,8 +148,6 @@ export function saveDomainState(domain: Domain, state: DomainState) {
   window.localStorage.setItem(domainKey(domain), JSON.stringify(state));
 }
 
-// Le mode rouge est global : une seule bascule pour toute la console,
-// quel que soit le domaine affiché.
 const MODE_ROUGE_KEY = "ibes:mode-rouge";
 
 export function loadModeRouge(): boolean {
