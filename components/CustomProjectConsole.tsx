@@ -22,7 +22,7 @@ export default function CustomProjectConsole({id}:{id:string}){
     <nav className="flex gap-1 px-6 pt-4 overflow-x-auto">{TABS.map(([tabId,label])=><button key={tabId} onClick={()=>setTab(tabId)} className={`px-4 py-2 border-b-2 whitespace-nowrap font-mono text-xs uppercase tracking-widest ${tab===tabId?"border-teal text-ink":"border-transparent text-muted"}`}>{label}</button>)}</nav>
     <section className="flex-1 px-6 py-8 max-w-3xl w-full mx-auto">
       {tab==="briefing"&&<BriefingPanel data={workspace.state.briefing} projects={workspace.state.projects} modeRouge={false} onChange={(b:BriefingData)=>setState(s=>({...s,briefing:b,completedThisWeek:syncWeeklyCompletedTasks(s.completedThisWeek,b)}))}/>} 
-      {tab==="projects"&&<ProjectsPanel projects={workspace.state.projects} onChange={projects=>setState(s=>({...s,projects}))}/>} 
+      {tab==="projects"&&<ProjectsPanel projects={workspace.state.projects} tasks={workspace.state.briefing.tasks} onChange={projects=>setState(s=>({...s,projects}))}/>} 
       {tab==="dump"&&<DumpPanel items={workspace.state.dump} onChange={items=>setState(s=>({...s,dump:items}))} onCreateTask={toTask}/>} 
       {tab==="review"&&<ReviewPanel draft={workspace.state.reviewDraft} history={workspace.state.reviewHistory} completedTasks={workspace.state.completedThisWeek} onDraftChange={d=>setState(s=>({...s,reviewDraft:d}))} onSave={entry=>setState(s=>({...s,reviewHistory:[entry,...s.reviewHistory],reviewDraft:emptyReviewDraft(),completedThisWeek:[]}))}/>} 
     </section>
