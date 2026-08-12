@@ -11,6 +11,9 @@ export type BriefingData = {
   p1: string;
   p2: string;
   p3: string;
+  p1Done: boolean;
+  p2Done: boolean;
+  p3Done: boolean;
   bonus: string;
   skip: string;
   tasks: TaskItem[];
@@ -78,6 +81,9 @@ export const emptyBriefing = (): BriefingData => ({
   p1: "",
   p2: "",
   p3: "",
+  p1Done: false,
+  p2Done: false,
+  p3Done: false,
   bonus: "",
   skip: "",
   tasks: [],
