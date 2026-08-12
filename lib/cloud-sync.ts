@@ -3,6 +3,7 @@ const CLOUD_KEYS = [
   "ibes:esport",
   "ibes:vie",
   "ibes:inbox",
+  "ibes:custom-workspaces",
   "ibes:mode-rouge",
   "ibes:load-settings",
   "ibes:daily-capacity",
