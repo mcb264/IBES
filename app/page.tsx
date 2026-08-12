@@ -217,12 +217,8 @@ export default function Home() {
         </div>
 
         <div>
-          <div className="flex items-end justify-between mb-4">
-            <div>
-              <p className="font-mono text-[11px] text-muted uppercase">Projets</p>
-              <h2 className="font-display text-2xl mt-1">Ce que tu construis</h2>
-            </div>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-muted">centre d'IBES</span>
+          <div className="mb-4">
+            <p className="font-mono text-[11px] text-muted uppercase">Projets</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-5">
