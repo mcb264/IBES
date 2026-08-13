@@ -12,10 +12,17 @@ export function daysUntil(date: string | undefined, today: string) {
   return Math.ceil((new Date(date + "T00:00:00").getTime() - new Date(today + "T00:00:00").getTime()) / 86400000);
 }
 
-export function urgencyScore(item: PlannerSource, today: string) {
-  const days = daysUntil(item.project?.dueDate, today);
+function dateUrgency(date: string | undefined, today: string) {
+  const days = daysUntil(date, today);
   if (days === null) return 0;
+  if (days <= 0) return 60;
   return Math.max(0, 30 - days);
+}
+
+export function urgencyScore(item: PlannerSource, today: string) {
+  const actionUrgency = dateUrgency(item.task.dueDate, today);
+  const projectUrgency = dateUrgency(item.project?.dueDate, today);
+  return actionUrgency * 2 + projectUrgency;
 }
 
 export function rankPlannerSources(items: PlannerSource[], today: string) {
