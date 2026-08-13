@@ -4,21 +4,20 @@ export type EffortLevel = "light" | "normal" | "heavy";
 export type TaskItem = { id:string;text:string;done:boolean;dueDate?:string;projectId?:string;carried?:boolean;effort?:EffortLevel;waiting?:boolean;waitingSince?:string;deferredUntil?:string;capacityOverrideDate?:string;todayDate?:string };
 export type Project={id:string;name:string;goal:string;dueDate?:string;done:boolean};
 export type BriefingData={date:string;p1:string;p2:string;p3:string;p1Done:boolean;p2Done:boolean;p3Done:boolean;p1Effort?:EffortLevel;p2Effort?:EffortLevel;p3Effort?:EffortLevel;bonus:string;skip:string;tasks:TaskItem[]};
-export type DumpCategory="URGENT"|"PLANIFIER"|"PARKING"|"OUBLIE"|null;
+export type DumpCategory="PLANIFIER"|"PARKING"|"OUBLIE"|null;
 export type DumpItem={id:string;text:string;category:DumpCategory};
 export type ReviewDraft={advanced:string;notDone:string;why:string;keep:string;change:string;next1:string;next2:string;next3:string};
 export type ReviewEntry=ReviewDraft&{id:string;savedAt:string;tasksDoneCount?:number;prioritiesDoneCount?:number};
 export type CompletedTask={id:string;text:string;date:string;kind?:"priority"|"task";priorityRank?:1|2|3};
 export type DomainState={briefing:BriefingData;dump:DumpItem[];projects:Project[];completedThisWeek:CompletedTask[];reviewDraft:ReviewDraft;reviewHistory:ReviewEntry[]};
 export type CustomWorkspace={id:string;name:string;state:DomainState};
-export type LoadSettings={lowCapacity:number;normalCapacity:number;highCapacity:number;priorityWeight:number;taskWeight:number;urgentWeight:number;dueWeight:number};
+export type LoadSettings={lowCapacity:number;normalCapacity:number;highCapacity:number;lightActionPoints:number;normalActionPoints:number;heavyActionPoints:number};
 export type DailyCapacity={date:string;level:CapacityLevel};
 export type LoadHistoryEntry={date:string;capacity:CapacityLevel|null;plannedPoints:number;peakPlannedPoints:number;completedPoints:number;completedPriorities:number;completedTasks:number;carriedTasks:number;updatedAt:string};
 export type LoadInsight={level:CapacityLevel;sampleSize:number;configured:number;averagePlanned:number;averageCompleted:number;completionRate:number;suggested:number;direction:"lower"|"higher";signature:string};
 
-export const DEFAULT_LOAD_SETTINGS:LoadSettings={lowCapacity:60,normalCapacity:100,highCapacity:140,priorityWeight:20,taskWeight:8,urgentWeight:12,dueWeight:15};
-export function effortMultiplier(e:EffortLevel|undefined){return e==="light"?.6:e==="heavy"?1.5:1;}
-export function taskPoints(t:TaskItem,s:LoadSettings){return Math.round(s.priorityWeight*effortMultiplier(t.effort));}
+export const DEFAULT_LOAD_SETTINGS:LoadSettings={lowCapacity:60,normalCapacity:100,highCapacity:140,lightActionPoints:12,normalActionPoints:20,heavyActionPoints:30};
+export function taskPoints(t:TaskItem,s:LoadSettings){return t.effort==="light"?s.lightActionPoints:t.effort==="heavy"?s.heavyActionPoints:s.normalActionPoints;}
 export function localDateKey(date=new Date()){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");return`${y}-${m}-${d}`;}
 export function isOpenAction(t:TaskItem){return !t.done&&!t.waiting;}
 export function isTaskActiveToday(t:TaskItem,date=localDateKey()){return isOpenAction(t)&&t.todayDate===date;}
@@ -29,7 +28,7 @@ export const emptyReviewDraft=():ReviewDraft=>({advanced:"",notDone:"",why:"",ke
 export const defaultDomainState=():DomainState=>({briefing:emptyBriefing(),dump:[],projects:[],completedThisWeek:[],reviewDraft:emptyReviewDraft(),reviewHistory:[]});
 export function waitingNeedsAttention(task:TaskItem,projects:Project[]){if(!task.waiting||!task.projectId)return false;const p=projects.find(x=>x.id===task.projectId);if(!p?.dueDate||p.done)return false;const today=new Date(localDateKey()+"T00:00:00"),due=new Date(p.dueDate+"T00:00:00");return Math.ceil((due.getTime()-today.getTime())/86400000)<=2;}
 export function rawWorkload(state:DomainState,settings:LoadSettings){return state.briefing.tasks.filter(t=>isTaskActiveToday(t)).reduce((n,t)=>n+taskPoints(t,settings),0);}
-export function workloadBreakdown(state:DomainState,settings:LoadSettings){const ts=state.briefing.tasks.filter(t=>isTaskActiveToday(t)),points=ts.reduce((n,t)=>n+taskPoints(t,settings),0);return{priorities:ts.length,tasks:0,urgent:0,due:0,priorityPoints:points,taskPoints:0,urgentPoints:0,duePoints:0};}
+export function workloadBreakdown(state:DomainState,settings:LoadSettings){const ts=state.briefing.tasks.filter(t=>isTaskActiveToday(t)),points=ts.reduce((n,t)=>n+taskPoints(t,settings),0);return{actions:ts.length,points};}
 export function capacityValue(level:CapacityLevel,s:LoadSettings){return level==="low"?s.lowCapacity:level==="high"?s.highCapacity:s.normalCapacity;}
 export function workloadUsage(state:DomainState,s:LoadSettings,l:CapacityLevel){const raw=rawWorkload(state,s),capacity=capacityValue(l,s);return{raw,capacity,percent:capacity?Math.round(raw/capacity*100):0};}
 export function syncWeeklyCompletedTasks(log:CompletedTask[],b:BriefingData){const current=keepCurrentWeek(log),existing=new Set(current.map(e=>e.id));return[...current,...b.tasks.filter(t=>t.done&&!existing.has(t.id)).map(t=>({id:t.id,text:t.text,date:b.date,kind:"priority" as const}))];}
@@ -57,7 +56,7 @@ export function loadDomainState(d:Domain){if(typeof window==="undefined")return 
 export function saveDomainState(d:Domain,s:DomainState){if(typeof window!=="undefined"){window.localStorage.setItem(domainKey(d),JSON.stringify(s));recordLoadHistory();}}
 export function loadModeRouge(){return typeof window!=="undefined"&&window.localStorage.getItem(MODE_ROUGE_KEY)==="1";}
 export function saveModeRouge(a:boolean){if(typeof window!=="undefined")window.localStorage.setItem(MODE_ROUGE_KEY,a?"1":"0");}
-export function loadLoadSettings():LoadSettings{if(typeof window==="undefined")return DEFAULT_LOAD_SETTINGS;try{return{...DEFAULT_LOAD_SETTINGS,...JSON.parse(window.localStorage.getItem(LOAD_SETTINGS_KEY)||"{}")};}catch{return DEFAULT_LOAD_SETTINGS;}}
+export function loadLoadSettings():LoadSettings{if(typeof window==="undefined")return DEFAULT_LOAD_SETTINGS;try{const raw=JSON.parse(window.localStorage.getItem(LOAD_SETTINGS_KEY)||"{}");const legacyNormal=Number(raw.priorityWeight)||DEFAULT_LOAD_SETTINGS.normalActionPoints;return{lowCapacity:Number(raw.lowCapacity)||DEFAULT_LOAD_SETTINGS.lowCapacity,normalCapacity:Number(raw.normalCapacity)||DEFAULT_LOAD_SETTINGS.normalCapacity,highCapacity:Number(raw.highCapacity)||DEFAULT_LOAD_SETTINGS.highCapacity,lightActionPoints:Number(raw.lightActionPoints)||Math.max(1,Math.round(legacyNormal*.6)),normalActionPoints:Number(raw.normalActionPoints)||legacyNormal,heavyActionPoints:Number(raw.heavyActionPoints)||Math.max(1,Math.round(legacyNormal*1.5))};}catch{return DEFAULT_LOAD_SETTINGS;}}
 export function saveLoadSettings(s:LoadSettings){if(typeof window!=="undefined"){window.localStorage.setItem(LOAD_SETTINGS_KEY,JSON.stringify(s));recordLoadHistory();}}
 export function loadDailyCapacity():DailyCapacity|null{if(typeof window==="undefined")return null;try{const p=JSON.parse(window.localStorage.getItem(DAILY_CAPACITY_KEY)||"null");return p?.date===localDateKey()?p:null;}catch{return null;}}
 export function saveDailyCapacity(level:CapacityLevel){if(typeof window!=="undefined"){window.localStorage.setItem(DAILY_CAPACITY_KEY,JSON.stringify({date:localDateKey(),level}));recordLoadHistory();}}
