@@ -3,12 +3,11 @@ import { useEffect,useState } from "react";
 import Link from "next/link";
 import {BriefingData,CustomWorkspace,emptyReviewDraft,loadCustomWorkspaces,saveCustomWorkspace,syncWeeklyCompletedTasks} from "@/lib/storage";
 import BriefingPanel from "@/components/BriefingPanel";
-import DumpPanel from "@/components/DumpPanel";
 import ReviewPanel from "@/components/ReviewPanel";
 import ProjectsPanel from "@/components/ProjectsPanel";
 
-type Tab="briefing"|"projects"|"dump"|"review";
-const TABS:[Tab,string][]=[["briefing","Briefing du jour"],["projects","Projets"],["dump","Décharge mentale"],["review","Bilan semaine"]];
+type Tab="briefing"|"projects"|"review";
+const TABS:[Tab,string][]=[["briefing","Briefing du jour"],["projects","Projets"],["review","Bilan semaine"]];
 
 export default function CustomProjectConsole({id}:{id:string}){
   const [workspace,setWorkspace]=useState<CustomWorkspace|null>(null);
@@ -16,14 +15,12 @@ export default function CustomProjectConsole({id}:{id:string}){
   useEffect(()=>{setWorkspace(loadCustomWorkspaces().find(w=>w.id===id)??null)},[id]);
   if(!workspace)return <main className="min-h-screen p-6"><Link href="/" className="text-muted">← Accueil</Link><p className="mt-8">Projet introuvable.</p></main>;
   const setState=(updater:(s:CustomWorkspace["state"])=>CustomWorkspace["state"])=>{const state=updater(workspace.state);const next={...workspace,state};setWorkspace(next);saveCustomWorkspace(id,state)};
-  const toTask=(itemId:string,text:string)=>setState(s=>({...s,dump:s.dump.filter(i=>i.id!==itemId),briefing:{...s.briefing,tasks:[...s.briefing.tasks,{id:crypto.randomUUID(),text,done:false}]}}));
   return <main className="min-h-screen flex flex-col">
     <header className="border-b border-white/10 px-6 py-4 flex items-center gap-3"><Link href="/" className="font-mono text-[11px] uppercase tracking-widest text-muted border border-white/15 rounded-full px-3 py-1.5">← Accueil</Link><div><h1 className="font-display text-xl text-teal">{workspace.name}</h1><p className="text-[10px] font-mono text-muted">PROJET</p></div></header>
     <nav className="flex gap-1 px-6 pt-4 overflow-x-auto">{TABS.map(([tabId,label])=><button key={tabId} onClick={()=>setTab(tabId)} className={`px-4 py-2 border-b-2 whitespace-nowrap font-mono text-xs uppercase tracking-widest ${tab===tabId?"border-teal text-ink":"border-transparent text-muted"}`}>{label}</button>)}</nav>
     <section className="flex-1 px-6 py-8 max-w-3xl w-full mx-auto">
       {tab==="briefing"&&<BriefingPanel data={workspace.state.briefing} projects={workspace.state.projects} modeRouge={false} onChange={(b:BriefingData)=>setState(s=>({...s,briefing:b,completedThisWeek:syncWeeklyCompletedTasks(s.completedThisWeek,b)}))}/>} 
       {tab==="projects"&&<ProjectsPanel projects={workspace.state.projects} tasks={workspace.state.briefing.tasks} onChange={projects=>setState(s=>({...s,projects}))}/>} 
-      {tab==="dump"&&<DumpPanel items={workspace.state.dump} onChange={items=>setState(s=>({...s,dump:items}))} onCreateTask={toTask}/>} 
       {tab==="review"&&<ReviewPanel draft={workspace.state.reviewDraft} history={workspace.state.reviewHistory} completedTasks={workspace.state.completedThisWeek} onDraftChange={d=>setState(s=>({...s,reviewDraft:d}))} onSave={entry=>setState(s=>({...s,reviewHistory:[entry,...s.reviewHistory],reviewDraft:emptyReviewDraft(),completedThisWeek:[]}))}/>} 
     </section>
   </main>;
