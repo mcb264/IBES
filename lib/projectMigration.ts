@@ -1,4 +1,4 @@
-import { defaultDomainState, loadCustomWorkspaces, loadDomainState, saveCustomWorkspaces, type DomainState } from "@/lib/storage";
+import { loadCustomWorkspaces, loadDomainState, saveCustomWorkspaces, type DomainState } from "@/lib/storage";
 
 const MIGRATION_KEY = "ibes:generic-projects-v1";
 
@@ -11,15 +11,15 @@ export function migrateLegacyProjects() {
 
   const workspaces = loadCustomWorkspaces();
   const legacy = [
-    { key: "ibes:musique", name: "Musique", state: loadDomainState("musique") },
-    { key: "ibes:esport", name: "Esport", state: loadDomainState("esport") },
+    { name: "Musique", state: loadDomainState("musique") },
+    { name: "Esport", state: loadDomainState("esport") },
   ];
 
-  let next = [...workspaces];
+  const next = [...workspaces];
   for (const item of legacy) {
     if (!hasContent(item.state)) continue;
-    const alreadyMigrated = next.some(w => w.id === `legacy-${item.name.toLowerCase()}`);
-    if (!alreadyMigrated) next.push({ id: `legacy-${item.name.toLowerCase()}`, name: item.name, state: item.state });
+    const id = `legacy-${item.name.toLowerCase()}`;
+    if (!next.some(w => w.id === id)) next.push({ id, name: item.name, state: item.state });
   }
 
   if (next.length !== workspaces.length) saveCustomWorkspaces(next);
