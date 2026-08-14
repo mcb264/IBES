@@ -14,6 +14,7 @@ const CLOUD_KEYS = [
 const ACTIVE_USER_KEY = "ibes:active-user";
 let timer: ReturnType<typeof setTimeout> | null = null;
 let hydrating = false;
+let readyToSync = false;
 
 function snapshot() {
   const data: Record<string, string> = {};
@@ -38,43 +39,30 @@ async function currentUserId() {
 export async function hydrateFromCloud() {
   if (typeof window === "undefined" || hydrating) return false;
   hydrating = true;
+  readyToSync = false;
   try {
     const userId = await currentUserId();
     if (!userId) return false;
-
-    const previousUserId = window.localStorage.getItem(ACTIVE_USER_KEY);
-    const accountChanged = previousUserId !== null && previousUserId !== userId;
-    if (accountChanged) clearCloudKeys();
-    window.localStorage.setItem(ACTIVE_USER_KEY, userId);
 
     const response = await fetch("/api/state", { cache: "no-store" });
     if (!response.ok) return false;
     const cloud = await response.json();
     const remote = cloud?.data as Record<string, string> | undefined;
-    const hasRemote = remote && Object.keys(remote).length > 0;
 
-    if (hasRemote) {
-      let changed = accountChanged;
+    // La DB est la source de vérité du compte connecté. On efface toujours
+    // l'état local avant de charger ce compte, même si le navigateur pense
+    // qu'il s'agit déjà du même utilisateur.
+    clearCloudKeys();
+    window.localStorage.setItem(ACTIVE_USER_KEY, userId);
+
+    if (remote && Object.keys(remote).length > 0) {
       for (const key of CLOUD_KEYS) {
-        if (remote[key] !== undefined && window.localStorage.getItem(key) !== remote[key]) {
-          window.localStorage.setItem(key, remote[key]);
-          changed = true;
-        }
+        if (remote[key] !== undefined) window.localStorage.setItem(key, remote[key]);
       }
-      return changed;
     }
 
-    if (accountChanged) return true;
-
-    const local = snapshot();
-    if (previousUserId === userId && Object.keys(local).length > 0) {
-      await fetch("/api/state", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(local),
-      });
-    }
-    return false;
+    readyToSync = true;
+    return true;
   } catch {
     return false;
   } finally {
@@ -83,7 +71,7 @@ export async function hydrateFromCloud() {
 }
 
 export function queueCloudSync() {
-  if (typeof window === "undefined" || hydrating) return;
+  if (typeof window === "undefined" || hydrating || !readyToSync) return;
   if (timer) clearTimeout(timer);
   timer = setTimeout(async () => {
     try {
@@ -99,5 +87,5 @@ export function queueCloudSync() {
 }
 
 export function isCloudHydrating() {
-  return hydrating;
+  return hydrating || !readyToSync;
 }
