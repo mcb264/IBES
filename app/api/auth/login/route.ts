@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, newSession, SESSION_COOKIE, verifyPassword } from "@/lib/auth";
+import { db, newSession, SESSION_COOKIE } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const { login, password } = await request.json();
-  if (typeof login !== "string" || typeof password !== "string") {
-    return NextResponse.json({ error: "Identifiants invalides" }, { status: 400 });
+  const { login } = await request.json();
+  if (typeof login !== "string" || !login.trim()) {
+    return NextResponse.json({ error: "Identifiant invalide" }, { status: 400 });
   }
 
   const pool = db();
   try {
-    const result = await pool.query("SELECT id, password_hash FROM ibes_users WHERE login = $1", [login.trim()]);
+    const result = await pool.query("SELECT id FROM ibes_users WHERE lower(login) = lower($1)", [login.trim()]);
     const user = result.rows[0];
-    if (!user || !verifyPassword(password, user.password_hash)) {
-      return NextResponse.json({ error: "Identifiant ou mot de passe incorrect" }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: "Identifiant inconnu" }, { status: 401 });
     }
 
     const session = newSession();
