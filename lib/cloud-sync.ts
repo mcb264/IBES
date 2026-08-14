@@ -11,6 +11,7 @@ const CLOUD_KEYS = [
   "ibes:load-insight-dismissed",
 ] as const;
 
+const ACTIVE_USER_KEY = "ibes:active-user";
 let timer: ReturnType<typeof setTimeout> | null = null;
 let hydrating = false;
 
@@ -23,10 +24,29 @@ function snapshot() {
   return data;
 }
 
+function clearCloudKeys() {
+  for (const key of CLOUD_KEYS) window.localStorage.removeItem(key);
+}
+
+async function currentUserId() {
+  const response = await fetch("/api/auth/session", { cache: "no-store" });
+  if (!response.ok) return null;
+  const session = await response.json();
+  return typeof session?.userId === "string" ? session.userId : null;
+}
+
 export async function hydrateFromCloud() {
   if (typeof window === "undefined" || hydrating) return false;
   hydrating = true;
   try {
+    const userId = await currentUserId();
+    if (!userId) return false;
+
+    const previousUserId = window.localStorage.getItem(ACTIVE_USER_KEY);
+    const accountChanged = previousUserId !== null && previousUserId !== userId;
+    if (accountChanged) clearCloudKeys();
+    window.localStorage.setItem(ACTIVE_USER_KEY, userId);
+
     const response = await fetch("/api/state", { cache: "no-store" });
     if (!response.ok) return false;
     const cloud = await response.json();
@@ -34,7 +54,7 @@ export async function hydrateFromCloud() {
     const hasRemote = remote && Object.keys(remote).length > 0;
 
     if (hasRemote) {
-      let changed = false;
+      let changed = accountChanged;
       for (const key of CLOUD_KEYS) {
         if (remote[key] !== undefined && window.localStorage.getItem(key) !== remote[key]) {
           window.localStorage.setItem(key, remote[key]);
@@ -44,8 +64,12 @@ export async function hydrateFromCloud() {
       return changed;
     }
 
+    // Un compte sans état cloud doit démarrer vide. On ne pousse jamais
+    // les données locales d'un autre compte vers un nouveau profil.
+    if (accountChanged) return true;
+
     const local = snapshot();
-    if (Object.keys(local).length > 0) {
+    if (previousUserId === userId && Object.keys(local).length > 0) {
       await fetch("/api/state", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
