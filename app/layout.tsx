@@ -11,5 +11,14 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", weigh
 export const metadata: Metadata = { title: "IBES — Système de pilotage", description: "Console personnelle : projets, charge et organisation." };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="fr"><body className={`${display.variable} ${body.variable} ${mono.variable} font-body bg-graphite text-ink antialiased`}><CloudBootstrap />{children}<GlobalInbox /></body></html>;
+  return (
+    <html lang="fr">
+      <body className={`${display.variable} ${body.variable} ${mono.variable} font-body bg-graphite text-ink antialiased`}>
+        <CloudBootstrap>
+          {children}
+          <GlobalInbox />
+        </CloudBootstrap>
+      </body>
+    </html>
+  );
 }
