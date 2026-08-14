@@ -1,13 +1,13 @@
 import { loadCustomWorkspaces, loadDomainState, saveCustomWorkspaces, type DomainState } from "@/lib/storage";
 
-const MIGRATION_KEY = "ibes:generic-projects-v1";
-
 function hasContent(state: DomainState) {
   return state.projects.length > 0 || state.briefing.tasks.length > 0 || state.dump.length > 0 || state.reviewHistory.length > 0 || state.completedThisWeek.length > 0;
 }
 
-export function migrateLegacyProjects() {
-  if (typeof window === "undefined" || window.localStorage.getItem(MIGRATION_KEY) === "1") return;
+export function migrateLegacyProjects(userId:string) {
+  if (typeof window === "undefined") return;
+  const migrationKey=`ibes:generic-projects-v1:${userId.toLowerCase()}`;
+  if(window.localStorage.getItem(migrationKey)==="1")return;
 
   const workspaces = loadCustomWorkspaces();
   const legacy = [
@@ -25,6 +25,6 @@ export function migrateLegacyProjects() {
   if (next.length !== workspaces.length) saveCustomWorkspaces(next);
   window.localStorage.removeItem("ibes:musique");
   window.localStorage.removeItem("ibes:esport");
-  window.localStorage.setItem(MIGRATION_KEY, "1");
+  window.localStorage.setItem(migrationKey,"1");
   window.dispatchEvent(new Event("ibes:workspaces-changed"));
 }
