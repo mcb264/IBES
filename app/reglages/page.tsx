@@ -6,6 +6,7 @@ import {CURRENT_LOAD_DEFAULTS,loadCurrentLoadSettings,saveCurrentLoadSettings} f
 
 const capacityFields:[keyof LoadSettings,string][]=[["lowCapacity","Basse"],["normalCapacity","Normale"],["highCapacity","Haute"]];
 const actionFields:[keyof LoadSettings,string][]=[["lightActionPoints","Basse"],["normalActionPoints","Normale"],["heavyActionPoints","Haute"]];
+const accountKeys=["ibes:musique","ibes:esport","ibes:vie","ibes:inbox","ibes:custom-workspaces","ibes:mode-rouge","ibes:load-settings","ibes:daily-capacity","ibes:load-history","ibes:load-insight-dismissed","ibes:active-user"];
 
 export default function Settings(){
   const[s,setS]=useState<LoadSettings|null>(null);
@@ -16,7 +17,12 @@ export default function Settings(){
   const change=(k:keyof LoadSettings,v:string)=>{const n={...s,[k]:Math.max(.1,Number(v)||.1)};setS(n);saveCurrentLoadSettings(n)};
   const reset=()=>{setS(CURRENT_LOAD_DEFAULTS);saveCurrentLoadSettings(CURRENT_LOAD_DEFAULTS)};
   const removeProject=(id:string)=>{const next=workspaces.filter(w=>w.id!==id);setWorkspaces(next);saveCustomWorkspaces(next);setConfirmId(null);window.dispatchEvent(new Event("ibes:workspaces-changed"));};
-  const logout=async()=>{await fetch("/api/auth/logout",{method:"POST"});window.location.href="/login";};
+  const logout=async()=>{
+    await fetch("/api/auth/logout",{method:"POST"});
+    for(const key of accountKeys) window.localStorage.removeItem(key);
+    window.sessionStorage.clear();
+    window.location.replace("/login");
+  };
   const field=(k:keyof LoadSettings,label:string)=><label key={k} className="flex items-center justify-between gap-4 py-3 border-b border-white/5 last:border-0"><span className="text-sm">{label}</span><div className="flex items-center gap-2"><input type="number" min="0.1" step="0.1" value={s[k]} onChange={e=>change(k,e.target.value)} className="w-20 bg-graphite border border-white/10 rounded px-3 py-2 text-right font-mono"/><span className="text-[10px] text-muted font-mono">PTS</span></div></label>;
   return <main className="min-h-screen px-6 py-8 max-w-2xl mx-auto">
     <div className="flex items-center justify-between mb-8"><div><h1 className="font-display text-3xl">Réglages</h1><p className="text-xs font-mono uppercase tracking-widest text-muted">points de charge</p></div><Link href="/" className="text-xs font-mono uppercase tracking-widest text-muted">← Cockpit</Link></div>
