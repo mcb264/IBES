@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import CloudBootstrap from "@/components/CloudBootstrap";
+import ProjectMigration from "@/components/ProjectMigration";
 import GlobalInbox from "@/components/GlobalInbox";
 import "./globals.css";
 
@@ -15,8 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <body className={`${display.variable} ${body.variable} ${mono.variable} font-body bg-graphite text-ink antialiased`}>
         <CloudBootstrap>
-          {children}
-          <GlobalInbox />
+          <ProjectMigration>
+            {children}
+            <GlobalInbox />
+          </ProjectMigration>
         </CloudBootstrap>
       </body>
     </html>
