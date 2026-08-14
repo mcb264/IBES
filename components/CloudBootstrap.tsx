@@ -14,12 +14,11 @@ export default function CloudBootstrap() {
     };
 
     hydrateFromCloud().then((changed) => {
-      if (!changed) {
+      if (!changed) return;
+      if (window.sessionStorage.getItem(RELOAD_GUARD) === "1") {
         window.sessionStorage.removeItem(RELOAD_GUARD);
         return;
       }
-
-      if (window.sessionStorage.getItem(RELOAD_GUARD) === "1") return;
       window.sessionStorage.setItem(RELOAD_GUARD, "1");
       window.location.reload();
     });
