@@ -4,8 +4,8 @@ function hasContent(state: DomainState) {
   return state.projects.length > 0 || state.briefing.tasks.length > 0 || state.dump.length > 0 || state.reviewHistory.length > 0 || state.completedThisWeek.length > 0;
 }
 
-export function migrateLegacyProjects(userId:string) {
-  if (typeof window === "undefined") return;
+export function migrateLegacyProjects(userId?:string) {
+  if (typeof window === "undefined" || !userId) return;
   const migrationKey=`ibes:generic-projects-v1:${userId.toLowerCase()}`;
   if(window.localStorage.getItem(migrationKey)==="1")return;
 
