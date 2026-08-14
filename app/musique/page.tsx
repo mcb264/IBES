@@ -1,5 +1,2 @@
-import DomainConsole from "@/components/DomainConsole";
-
-export default function MusiquePage() {
-  return <DomainConsole domain="musique" />;
-}
+import {redirect} from "next/navigation";
+export default function MusiquePage(){redirect("/projet/legacy-musique")}
