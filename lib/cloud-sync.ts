@@ -64,8 +64,6 @@ export async function hydrateFromCloud() {
       return changed;
     }
 
-    // Un compte sans état cloud doit démarrer vide. On ne pousse jamais
-    // les données locales d'un autre compte vers un nouveau profil.
     if (accountChanged) return true;
 
     const local = snapshot();
@@ -98,4 +96,8 @@ export function queueCloudSync() {
       // localStorage reste le filet de sécurité hors-ligne.
     }
   }, 350);
+}
+
+export function isCloudHydrating() {
+  return hydrating;
 }
