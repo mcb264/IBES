@@ -1,10 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [login, setLogin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,8 +22,9 @@ export default function LoginPage() {
         setError(body.error ?? "Connexion impossible");
         return;
       }
-      router.replace("/");
-      router.refresh();
+      // Rechargement complet indispensable : le bootstrap global a déjà tourné
+      // sur /login sans session. Une navigation client ne le remonte pas.
+      window.location.replace("/");
     } finally {
       setLoading(false);
     }
