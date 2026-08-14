@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
-import CloudBootstrap from "@/components/CloudBootstrap";
-import GlobalInbox from "@/components/GlobalInbox";
 import "./globals.css";
 
 const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display", weight: ["500", "700"] });
@@ -14,10 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <body className={`${display.variable} ${body.variable} ${mono.variable} font-body bg-graphite text-ink antialiased`}>
-        <CloudBootstrap>
-          {children}
-          <GlobalInbox />
-        </CloudBootstrap>
+        {children}
       </body>
     </html>
   );
