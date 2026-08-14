@@ -1,1 +1,0 @@
-POST /api/auth/logout invalide la session courante. Le bouton de déconnexion pourra être ajouté dans Réglages une fois le flux de connexion validé.
