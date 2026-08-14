@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { hydrateFromCloud, queueCloudSync } from "@/lib/cloud-sync";
+import { hydrateFromCloud, isCloudHydrating, queueCloudSync } from "@/lib/cloud-sync";
 
 const RELOAD_GUARD = "ibes:cloud-bootstrap-reloaded";
 
@@ -10,7 +10,7 @@ export default function CloudBootstrap() {
     const originalSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function (key: string, value: string) {
       originalSetItem.call(this, key, value);
-      if (this === window.localStorage && key.startsWith("ibes:")) queueCloudSync();
+      if (this === window.localStorage && key.startsWith("ibes:") && !isCloudHydrating()) queueCloudSync();
     };
 
     hydrateFromCloud().then((changed) => {
