@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = Boolean(request.cookies.get("ibes_session")?.value);
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/setup") {
     if (hasSession) return NextResponse.redirect(new URL("/", request.url));
     return NextResponse.next();
   }

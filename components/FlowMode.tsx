@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Domain, DomainState, TaskItem, loadCustomWorkspaces, loadDomainState, saveCustomWorkspace, saveDomainState, syncWeeklyCompletedTasks } from "@/lib/storage";
 
 type Target = { id:string; label:string; kind:"domain"|"custom"; domain?:Domain };
@@ -14,11 +14,11 @@ export default function FlowMode({active,onExit}:Props){
  const [adding,setAdding]=useState(false);
  const [text,setText]=useState("");
  const [completed,setCompleted]=useState(0);
- const targets=useMemo<Target[]>(()=>[
+ const targets:Target[]=[
   {id:"musique",label:"Musique",kind:"domain",domain:"musique"},
   {id:"esport",label:"Esport",kind:"domain",domain:"esport"},
   ...loadCustomWorkspaces().map(w=>({id:w.id,label:w.name,kind:"custom" as const}))
- ],[active]);
+ ];
  useEffect(()=>{if(!active){setTarget(null);setState(null);setStartedAt(null);setCompleted(0);setAdding(false);setText("");}},[active]);
  useEffect(()=>{if(!startedAt)return;const i=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(i)},[startedAt]);
  if(!active)return null;

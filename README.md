@@ -4,6 +4,17 @@ App web (Next.js + Tailwind) : 3 canaux (Musique, Esport, Vie), chacun avec brie
 
 Les données sont stockées uniquement dans ce navigateur (localStorage), séparément pour chaque canal. Le briefing du jour se réinitialise automatiquement à chaque nouvelle date.
 
+## Authentification et première connexion
+
+Avant le déploiement, appliquer la migration SQL `db/migrations/001_password_auth.sql` sur la base Neon, puis définir ces variables d'environnement dans Vercel et localement :
+
+```bash
+DATABASE_URL=postgresql://...
+IBES_SETUP_SECRET=un-code-long-aleatoire-a-partager-une-seule-fois
+```
+
+Sur `/setup`, le code `IBES_SETUP_SECRET` permet soit de créer un nouveau compte, soit d'initialiser l'un des comptes existants. Dans ce dernier cas, la personne saisit son identifiant actuel, puis choisit son nouvel identifiant et un mot de passe d'au moins 8 caractères. Une fois initialisé, un compte existant ne peut plus être réinitialisé par cet écran et la connexion exige son mot de passe. Après connexion, les données sont associées au compte et synchronisées avec la base de données.
+
 ## Tester en local
 
 ```bash
