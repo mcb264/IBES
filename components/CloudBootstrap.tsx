@@ -1,28 +1,16 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
-
-const CLOUD_KEYS = [
-  "ibes:musique",
-  "ibes:esport",
-  "ibes:vie",
-  "ibes:inbox",
-  "ibes:custom-workspaces",
-  "ibes:mode-rouge",
-  "ibes:load-settings",
-  "ibes:daily-capacity",
-  "ibes:load-history",
-  "ibes:load-insight-dismissed",
-] as const;
+import { CLOUD_STATE_KEYS, CloudState } from "@/lib/cloudKeys";
 
 let activeUserId: string | null = null;
 let hydrated = false;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let dirty = false;
 
-function snapshot() {
-  const data: Record<string, string> = {};
-  for (const key of CLOUD_KEYS) {
+function snapshot(): CloudState {
+  const data: CloudState = {};
+  for (const key of CLOUD_STATE_KEYS) {
     const value = window.localStorage.getItem(key);
     if (value !== null) data[key] = value;
   }
@@ -30,7 +18,7 @@ function snapshot() {
 }
 
 function clearAccountState() {
-  for (const key of CLOUD_KEYS) window.localStorage.removeItem(key);
+  for (const key of CLOUD_STATE_KEYS) window.localStorage.removeItem(key);
 }
 
 async function pushState(keepalive = false) {
@@ -88,11 +76,11 @@ export default function CloudBootstrap({ children }: { children: ReactNode }) {
         const stateResponse = await fetch("/api/state", { cache: "no-store" });
         if (!stateResponse.ok) return;
         const state = await stateResponse.json();
-        const remote = state?.data && typeof state.data === "object" ? state.data as Record<string, string> : {};
+        const remote = state?.data && typeof state.data === "object" ? state.data as CloudState : {};
 
         // Toujours repartir de l'état Neon du compte connecté.
         clearAccountState();
-        for (const key of CLOUD_KEYS) {
+        for (const key of CLOUD_STATE_KEYS) {
           if (typeof remote[key] === "string") originalSetItem.call(window.localStorage, key, remote[key]);
         }
 
@@ -101,7 +89,7 @@ export default function CloudBootstrap({ children }: { children: ReactNode }) {
 
         Storage.prototype.setItem = function (key: string, value: string) {
           originalSetItem.call(this, key, value);
-          if (this !== window.localStorage || !CLOUD_KEYS.includes(key as (typeof CLOUD_KEYS)[number]) || !hydrated) return;
+          if (this !== window.localStorage || !CLOUD_STATE_KEYS.includes(key as (typeof CLOUD_STATE_KEYS)[number]) || !hydrated) return;
           scheduleSync();
         };
 

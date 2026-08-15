@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useState} from "react";
 import {CapacityLevel,LoadSettings,TaskItem,loadCustomWorkspaces,loadDailyCapacity,localDateKey,saveCustomWorkspace,saveDailyCapacity,taskPoints} from "@/lib/storage";
 import {actionsOf,replaceActions} from "@/lib/actions";
 import {buildDailyProposal,PlannerSource} from "@/lib/planner";
@@ -11,13 +11,13 @@ const loadLabel=(task:TaskItem)=>LOAD_LABEL[task.effort??"normal"];
 export default function DailyPlan({down,settings,onCapacity}:{down:boolean;settings:LoadSettings;onCapacity?:(l:CapacityLevel)=>void}){
  const[version,setVersion]=useState(0),[capacity,setCapacity]=useState<CapacityLevel|null>(null),[editing,setEditing]=useState(false),[draft,setDraft]=useState<string[]>([]);const today=localDateKey();
  useEffect(()=>setCapacity(loadDailyCapacity()?.level??null),[version]);
- const refs=useMemo(()=>{if(typeof window==="undefined")return[] as Ref[];const out:Ref[]=[];for(const w of loadCustomWorkspaces()){const color=workspaceColor(w);actionsOf(w.state).forEach((task,order)=>{if(task.done||task.waiting)return;const p=w.state.projects.find(x=>x.id===task.projectId);out.push({key:`c:${w.id}:${task.id}`,label:w.name,sub:p?.name,workspaceId:w.id,task,projectDue:p?.dueDate,order,color})})}return out},[version,today]);
+ const refs=(()=>{if(typeof window==="undefined")return[] as Ref[];const out:Ref[]=[];for(const w of loadCustomWorkspaces()){const color=workspaceColor(w);actionsOf(w.state).forEach((task,order)=>{if(task.done||task.waiting)return;const p=w.state.projects.find(x=>x.id===task.projectId);out.push({key:`c:${w.id}:${task.id}`,label:w.name,sub:p?.name,workspaceId:w.id,task,projectDue:p?.dueDate,order,color})})}return out})();
  const todayRefs=refs.filter(r=>r.task.todayDate===today);
  const proposalFor=(level:CapacityLevel)=>buildDailyProposal(refs,level,settings,today) as Ref[];
  const proposalWithOverrides=(level:CapacityLevel)=>{const keys=new Set(proposalFor(level).map(r=>r.key));for(const r of refs){if(r.task.capacityOverrideDate!==today)continue;if(r.task.todayDate===today)keys.add(r.key);else keys.delete(r.key)}return refs.filter(r=>keys.has(r.key))};
  const saveToday=(keys:string[],manual=false,baselineKeys:string[]=[])=>{const set=new Set(keys),baseline=new Set(baselineKeys);for(const w of loadCustomWorkspaces())saveCustomWorkspace(w.id,replaceActions(w.state,actionsOf(w.state).map(t=>{const key=`c:${w.id}:${t.id}`,selected=set.has(key),wasToday=t.todayDate===today;let capacityOverrideDate=t.capacityOverrideDate;if(manual){const differs=selected!==baseline.has(key);capacityOverrideDate=differs?today:capacityOverrideDate===today?undefined:capacityOverrideDate}return{...t,todayDate:selected?today:wasToday?undefined:t.todayDate,capacityOverrideDate}})));setEditing(false);setVersion(v=>v+1)};
  const chooseCapacity=(l:CapacityLevel)=>{const hadProgram=todayRefs.length>0||refs.some(r=>r.task.capacityOverrideDate===today);saveDailyCapacity(l);setCapacity(l);onCapacity?.(l);setDraft([]);if(hadProgram)saveToday(proposalWithOverrides(l).map(r=>r.key))};
- const proposal=useMemo(()=>capacity?proposalWithOverrides(capacity):[],[refs,capacity,settings,today]);
+ const proposal=capacity?proposalWithOverrides(capacity):[];
  const levelButtons=<div className="flex gap-1">{LEVELS.map(([v,l])=><button key={v} onClick={()=>chooseCapacity(v)} className={`rounded-md border px-3 py-1.5 text-xs ${capacity===v?"border-teal/60 bg-teal/10 text-teal":"border-white/15 text-muted hover:border-teal/40 hover:text-ink"}`}>{l}</button>)}</div>;
  const done=(r:Ref)=>{const w=loadCustomWorkspaces().find(x=>x.id===r.workspaceId);if(w)saveCustomWorkspace(w.id,replaceActions(w.state,actionsOf(w.state).map(t=>t.id===r.task.id?{...t,done:true,todayDate:undefined,capacityOverrideDate:undefined}:t)));setVersion(v=>v+1)};
  if(!capacity)return <section className="rounded-xl border border-white/10 bg-panel px-5 py-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm"><span className="text-teal font-medium">IBES</span> · Ta capacité aujourd’hui ?</p>{levelButtons}</div></section>;
