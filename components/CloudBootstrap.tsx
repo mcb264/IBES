@@ -18,6 +18,7 @@ const CLOUD_KEYS = [
 let activeUserId: string | null = null;
 let hydrated = false;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let dirty = false;
 
 function snapshot() {
   const data: Record<string, string> = {};
@@ -32,13 +33,29 @@ function clearAccountState() {
   for (const key of CLOUD_KEYS) window.localStorage.removeItem(key);
 }
 
-async function pushState() {
-  if (!hydrated || !activeUserId) return;
-  await fetch("/api/state", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(snapshot()),
-  });
+async function pushState(keepalive = false) {
+  if (!hydrated || !activeUserId || !dirty) return;
+  dirty = false;
+  try {
+    const response = await fetch("/api/state", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(snapshot()),
+      keepalive,
+    });
+    if (!response.ok) dirty = true;
+  } catch {
+    dirty = true;
+  }
+}
+
+function scheduleSync() {
+  dirty = true;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    syncTimer = null;
+    void pushState();
+  }, 250);
 }
 
 export default function CloudBootstrap({ children }: { children: ReactNode }) {
@@ -47,6 +64,18 @@ export default function CloudBootstrap({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     const originalSetItem = Storage.prototype.setItem;
+
+    const flushPendingState = () => {
+      if (syncTimer) {
+        clearTimeout(syncTimer);
+        syncTimer = null;
+      }
+      void pushState(true);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushPendingState();
+    };
 
     async function boot() {
       try {
@@ -68,13 +97,16 @@ export default function CloudBootstrap({ children }: { children: ReactNode }) {
         }
 
         hydrated = true;
+        dirty = false;
 
         Storage.prototype.setItem = function (key: string, value: string) {
           originalSetItem.call(this, key, value);
           if (this !== window.localStorage || !CLOUD_KEYS.includes(key as (typeof CLOUD_KEYS)[number]) || !hydrated) return;
-          if (syncTimer) clearTimeout(syncTimer);
-          syncTimer = setTimeout(() => { void pushState(); }, 400);
+          scheduleSync();
         };
+
+        window.addEventListener("pagehide", flushPendingState);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -84,10 +116,13 @@ export default function CloudBootstrap({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      flushPendingState();
+      window.removeEventListener("pagehide", flushPendingState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      Storage.prototype.setItem = originalSetItem;
       hydrated = false;
       activeUserId = null;
-      if (syncTimer) clearTimeout(syncTimer);
-      Storage.prototype.setItem = originalSetItem;
+      dirty = false;
     };
   }, []);
 
