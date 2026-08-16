@@ -1,4 +1,4 @@
-import { CapacityLevel, LoadSettings, Project, TaskItem, capacityValue, taskPoints } from "@/lib/storage";
+import { CapacityLevel, LoadSettings, Project, TaskItem, capacityValue, taskPoints } from "./storage";
 
 export type PlannerSource = {
   key: string;
@@ -42,4 +42,24 @@ export function buildDailyProposal(items: PlannerSource[], level: CapacityLevel,
     used += points;
     return true;
   });
+}
+
+/**
+ * DOWN is deliberately stricter than the regular low-capacity plan. It keeps
+ * at most two ranked actions and roughly one normal action worth of load.
+ * The first action is always kept so an unusually heavy urgent action does
+ * not result in an empty day.
+ */
+export function buildDownProposal(items: PlannerSource[], settings: LoadSettings, today: string) {
+  const cap = Math.min(
+    capacityValue("low", settings),
+    Math.max(settings.normalActionPoints, settings.lightActionPoints * 2),
+  );
+  let used = 0;
+  return rankPlannerSources(items, today).filter(item => {
+    if (used > 0 && used + taskPoints(item.task, settings) > cap) return false;
+    if (used > 0 && used >= cap) return false;
+    used += taskPoints(item.task, settings);
+    return true;
+  }).slice(0, 2);
 }
