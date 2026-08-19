@@ -7,7 +7,6 @@ import ReviewPanel from "@/components/ReviewPanel";
 import ProjectsPanel,{type WorkspaceMode} from "@/components/ProjectsPanel";
 
 type Tab="projects"|"review";
-type ModeWorkspace=CustomWorkspace&{mode?:WorkspaceMode};
 const TABS:[Tab,string][]=[["projects","Projets"],["review","Bilan semaine"]];
 
 export default function CustomProjectConsole({id}:{id:string}){
@@ -16,7 +15,7 @@ export default function CustomProjectConsole({id}:{id:string}){
   useEffect(()=>{setWorkspace(loadCustomWorkspaces().find(w=>w.id===id)??null)},[id]);
   if(!workspace)return <main className="min-h-screen p-6"><Link href="/" className="text-muted">← Accueil</Link><p className="mt-8">Projet introuvable.</p></main>;
   const color=workspaceColor(workspace);
-  const workspaceMode=((workspace as ModeWorkspace).mode??"standard") as WorkspaceMode;
+  const workspaceMode=workspace.mode??"standard";
   const setState=(updater:(s:CustomWorkspace["state"])=>CustomWorkspace["state"])=>{const state=updater(workspace.state);setWorkspace({...workspace,state});saveCustomWorkspace(id,state)};
 
   return <main className="min-h-screen flex flex-col bg-[#0b0f12]">

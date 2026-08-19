@@ -1,8 +1,9 @@
 export type Domain = "musique" | "esport" | "vie";
 export type CapacityLevel = "low" | "normal" | "high";
 export type EffortLevel = "light" | "normal" | "heavy";
-export type TaskItem = { id:string;text:string;done:boolean;dueDate?:string;projectId?:string;carried?:boolean;effort?:EffortLevel;waiting?:boolean;waitingSince?:string;deferredUntil?:string;capacityOverrideDate?:string;todayDate?:string;recurringTarget?:number;recurringPeriod?:"week";recurringCount?:number;recurringPeriodKey?:string;recurrenceHistory?:string[] };
-export type Project={id:string;name:string;goal:string;dueDate?:string;done:boolean;order?:number};
+export type WorkspaceMode = "standard" | "sport";
+export type TaskItem = { id:string;text:string;done:boolean;dueDate?:string;projectId?:string;carried?:boolean;effort?:EffortLevel;waiting?:boolean;waitingSince?:string;deferredUntil?:string;capacityOverrideDate?:string;todayDate?:string;recurringTarget?:number;recurringPeriod?:"week";recurringCount?:number;recurringPeriodKey?:string;recurrenceHistory?:string[];projectPaused?:boolean;projectPausedWasWaiting?:boolean;sportSteps?:string[] };
+export type Project={id:string;name:string;goal:string;dueDate?:string;done:boolean;order?:number;mode?:WorkspaceMode};
 export type BriefingData={date:string;p1:string;p2:string;p3:string;p1Done:boolean;p2Done:boolean;p3Done:boolean;p1Effort?:EffortLevel;p2Effort?:EffortLevel;p3Effort?:EffortLevel;bonus:string;skip:string;tasks:TaskItem[]};
 export type DumpCategory="PLANIFIER"|"PARKING"|"OUBLIE"|null;
 export type DumpItem={id:string;text:string;category:DumpCategory};
@@ -10,7 +11,7 @@ export type ReviewDraft={advanced:string;notDone:string;why:string;keep:string;c
 export type ReviewEntry=ReviewDraft&{id:string;savedAt:string;tasksDoneCount?:number;prioritiesDoneCount?:number};
 export type CompletedTask={id:string;text:string;date:string;kind?:"priority"|"task";priorityRank?:1|2|3};
 export type DomainState={briefing:BriefingData;dump:DumpItem[];projects:Project[];completedThisWeek:CompletedTask[];reviewDraft:ReviewDraft;reviewHistory:ReviewEntry[]};
-export type CustomWorkspace={id:string;name:string;state:DomainState};
+export type CustomWorkspace={id:string;name:string;state:DomainState;mode?:WorkspaceMode;color?:string};
 export type LoadSettings={lowCapacity:number;normalCapacity:number;highCapacity:number;lightActionPoints:number;normalActionPoints:number;heavyActionPoints:number};
 export type DailyCapacity={date:string;level:CapacityLevel};
 export type LoadHistoryEntry={date:string;capacity:CapacityLevel|null;plannedPoints:number;peakPlannedPoints:number;completedPoints:number;completedPriorities:number;completedTasks:number;carriedTasks:number;updatedAt:string};
@@ -42,9 +43,35 @@ function migrateBriefing(b:BriefingData){const old=([1,2,3]as const).flatMap(ran
 function domainKey(d:Domain){return`ibes:${d}`;}
 function parseDomainState(d:Domain):DomainState{try{const raw=window.localStorage.getItem(domainKey(d));if(!raw)return defaultDomainState();const parsed=JSON.parse(raw);const briefing=migrateBriefing({...emptyBriefing(),...parsed.briefing});return{...defaultDomainState(),...parsed,briefing,projects:parsed.projects??[]};}catch{return defaultDomainState();}}
 
+function normalizeState(value:unknown):DomainState{
+ const parsed=value&&typeof value==="object"?value as Partial<DomainState>:{};
+ const briefingValue=parsed.briefing&&typeof parsed.briefing==="object"?parsed.briefing:{};
+ const briefing=migrateBriefing({...emptyBriefing(),...briefingValue,tasks:Array.isArray((briefingValue as Partial<BriefingData>).tasks)?(briefingValue as BriefingData).tasks:[]});
+ const state:DomainState={
+  ...defaultDomainState(),
+  ...parsed,
+  briefing,
+  dump:Array.isArray(parsed.dump)?parsed.dump:[],
+  projects:Array.isArray(parsed.projects)?parsed.projects:[],
+  completedThisWeek:keepCurrentWeek(Array.isArray(parsed.completedThisWeek)?parsed.completedThisWeek:[]),
+  reviewDraft:{...emptyReviewDraft(),...(parsed.reviewDraft&&typeof parsed.reviewDraft==="object"?parsed.reviewDraft:{})},
+  reviewHistory:Array.isArray(parsed.reviewHistory)?parsed.reviewHistory:[],
+ };
+ if(state.briefing.date!==localDateKey()){
+  const previousDate=state.briefing.date;
+  const known=new Set(state.completedThisWeek.map(task=>task.id));
+  const completed=state.briefing.tasks
+   .filter(task=>task.done&&!known.has(task.id))
+   .map(task=>({id:task.id,text:task.text,date:previousDate,kind:"priority" as const}));
+  state.completedThisWeek=keepCurrentWeek([...state.completedThisWeek,...completed]);
+  state.briefing={...state.briefing,date:localDateKey(),tasks:state.briefing.tasks.map(task=>normalizeRecurringTask({...task,todayDate:undefined,capacityOverrideDate:undefined}))};
+ }
+ return state;
+}
+
 const MODE_ROUGE_KEY="ibes:mode-rouge",LOAD_SETTINGS_KEY="ibes:load-settings",DAILY_CAPACITY_KEY="ibes:daily-capacity",LOAD_HISTORY_KEY="ibes:load-history",INSIGHT_DISMISS_KEY="ibes:load-insight-dismissed",CUSTOM_WORKSPACES_KEY="ibes:custom-workspaces",PURGE_DONE_KEY="ibes:purge-done-v2";
 function purgeDomainDoneOnce(d:Domain,state:DomainState){const key=`${PURGE_DONE_KEY}:${d}`;if(window.localStorage.getItem(key)==="1")return state;const cleaned={...state,briefing:{...state.briefing,tasks:state.briefing.tasks.filter(t=>!t.done)}};window.localStorage.setItem(key,"1");return cleaned;}
-export function loadCustomWorkspaces():CustomWorkspace[]{if(typeof window==="undefined")return[];try{const parsed:CustomWorkspace[]=JSON.parse(window.localStorage.getItem(CUSTOM_WORKSPACES_KEY)||"[]").map((w:CustomWorkspace)=>({...w,state:{...w.state,briefing:{...w.state.briefing,tasks:(w.state.briefing.tasks??[]).map(t=>normalizeRecurringTask(t))}}}));const key=`${PURGE_DONE_KEY}:custom`;if(window.localStorage.getItem(key)==="1")return parsed;const cleaned=parsed.map(w=>({...w,state:{...w.state,briefing:{...w.state.briefing,tasks:(w.state.briefing.tasks??[]).filter(t=>!t.done)}}}));window.localStorage.setItem(CUSTOM_WORKSPACES_KEY,JSON.stringify(cleaned));window.localStorage.setItem(key,"1");return cleaned;}catch{return[];}}
+export function loadCustomWorkspaces():CustomWorkspace[]{if(typeof window==="undefined")return[];try{const value:unknown=JSON.parse(window.localStorage.getItem(CUSTOM_WORKSPACES_KEY)||"[]");if(!Array.isArray(value))return[];const parsed=value.filter((item):item is Partial<CustomWorkspace>=>!!item&&typeof item==="object"&&typeof item.id==="string"&&typeof item.name==="string").map(item=>({...item,id:item.id!,name:item.name!,state:normalizeState(item.state)} as CustomWorkspace));const key=`${PURGE_DONE_KEY}:custom`;if(window.localStorage.getItem(key)==="1"){window.localStorage.setItem(CUSTOM_WORKSPACES_KEY,JSON.stringify(parsed));return parsed;}const cleaned=parsed.map(w=>({...w,state:{...w.state,briefing:{...w.state.briefing,tasks:w.state.briefing.tasks.filter(t=>!t.done)}}}));window.localStorage.setItem(CUSTOM_WORKSPACES_KEY,JSON.stringify(cleaned));window.localStorage.setItem(key,"1");return cleaned;}catch{return[];}}
 export function saveCustomWorkspaces(items:CustomWorkspace[]){if(typeof window!=="undefined")window.localStorage.setItem(CUSTOM_WORKSPACES_KEY,JSON.stringify(items));}
 export function createCustomWorkspace(name:string){const item:CustomWorkspace={id:crypto.randomUUID(),name,state:defaultDomainState()};saveCustomWorkspaces([...loadCustomWorkspaces(),item]);return item;}
 export function saveCustomWorkspace(id:string,state:DomainState){saveCustomWorkspaces(loadCustomWorkspaces().map(w=>w.id===id?{...w,state}:w));recordLoadHistory();}
@@ -53,7 +80,7 @@ function recordLoadHistory(){if(typeof window==="undefined")return;const setting
 export function loadLoadHistory():LoadHistoryEntry[]{if(typeof window==="undefined")return[];try{return JSON.parse(window.localStorage.getItem(LOAD_HISTORY_KEY)||"[]");}catch{return[];}}
 export function getLoadInsight(settings:LoadSettings):LoadInsight|null{if(typeof window==="undefined")return null;const history=loadLoadHistory().filter(h=>h.capacity&&h.date<localDateKey()&&h.peakPlannedPoints>0);for(const level of["normal","low","high"]as CapacityLevel[]){const rows=history.filter(h=>h.capacity===level);if(rows.length<7)continue;const recent=rows.slice(-14),avgPlanned=Math.round(recent.reduce((n,h)=>n+h.peakPlannedPoints,0)/recent.length),avgCompleted=Math.round(recent.reduce((n,h)=>n+h.completedPoints,0)/recent.length),completionRate=avgPlanned?Math.round(avgCompleted/avgPlanned*100):0,configured=capacityValue(level,settings);let direction:"lower"|"higher"|null=null,suggested=configured;if(completionRate<75&&avgPlanned>=configured*.7){direction="lower";suggested=Math.max(20,Math.round(avgCompleted/5)*5);}else if(completionRate>=90&&avgPlanned>=configured*.9&&avgCompleted>=configured*.9){direction="higher";suggested=Math.round(Math.max(configured*1.1,avgCompleted*1.1)/5)*5;}if(!direction||Math.abs(suggested-configured)<10)continue;const signature=`${level}:${rows.length}:${direction}:${suggested}`;if(window.localStorage.getItem(INSIGHT_DISMISS_KEY)===signature)continue;return{level,sampleSize:recent.length,configured,averagePlanned:avgPlanned,averageCompleted:avgCompleted,completionRate,suggested,direction,signature};}return null;}
 export function dismissLoadInsight(s:string){if(typeof window!=="undefined")window.localStorage.setItem(INSIGHT_DISMISS_KEY,s);}
-export function loadDomainState(d:Domain){if(typeof window==="undefined")return defaultDomainState();try{let state=parseDomainState(d);state.completedThisWeek=keepCurrentWeek(state.completedThisWeek??[]);if(state.briefing.date!==localDateKey()){const previousDate=state.briefing.date,completed=state.briefing.tasks.filter(t=>t.done).map(t=>({id:t.id,text:t.text,date:previousDate,kind:"priority" as const})),known=new Set(state.completedThisWeek.map(t=>t.id));state.completedThisWeek=[...state.completedThisWeek,...completed.filter(t=>!known.has(t.id))];state.briefing={...state.briefing,date:localDateKey(),tasks:state.briefing.tasks.map(t=>normalizeRecurringTask({...t,todayDate:undefined,capacityOverrideDate:undefined}))};}else state.briefing={...state.briefing,tasks:state.briefing.tasks.map(t=>normalizeRecurringTask(t))};state=purgeDomainDoneOnce(d,state);window.localStorage.setItem(domainKey(d),JSON.stringify(state));return state;}catch{return defaultDomainState();}}
+export function loadDomainState(d:Domain){if(typeof window==="undefined")return defaultDomainState();try{let state=parseDomainState(d);state.completedThisWeek=keepCurrentWeek(state.completedThisWeek??[]);if(state.briefing.date!==localDateKey()){const previousDate=state.briefing.date,completed=state.briefing.tasks.filter(t=>t.done).map(t=>({id:t.id,text:t.text,date:previousDate,kind:"priority" as const})),known=new Set(state.completedThisWeek.map(t=>t.id));state.completedThisWeek=keepCurrentWeek([...state.completedThisWeek,...completed.filter(t=>!known.has(t.id))]);state.briefing={...state.briefing,date:localDateKey(),tasks:state.briefing.tasks.map(t=>normalizeRecurringTask({...t,todayDate:undefined,capacityOverrideDate:undefined}))};}else state.briefing={...state.briefing,tasks:state.briefing.tasks.map(t=>normalizeRecurringTask(t))};state=purgeDomainDoneOnce(d,state);window.localStorage.setItem(domainKey(d),JSON.stringify(state));return state;}catch{return defaultDomainState();}}
 export function saveDomainState(d:Domain,s:DomainState){if(typeof window!=="undefined"){window.localStorage.setItem(domainKey(d),JSON.stringify(s));recordLoadHistory();}}
 export function loadModeRouge(){return typeof window!=="undefined"&&window.localStorage.getItem(MODE_ROUGE_KEY)==="1";}
 export function saveModeRouge(a:boolean){if(typeof window!=="undefined")window.localStorage.setItem(MODE_ROUGE_KEY,a?"1":"0");}

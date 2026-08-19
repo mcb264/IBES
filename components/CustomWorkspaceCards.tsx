@@ -2,11 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createCustomWorkspace, loadCustomWorkspaces, saveCustomWorkspaces, type CustomWorkspace } from "@/lib/storage";
+import { createCustomWorkspace, loadCustomWorkspaces, saveCustomWorkspaces, type CustomWorkspace, type WorkspaceMode } from "@/lib/storage";
 import { WORKSPACE_COLORS, workspaceColor, withWorkspaceColor } from "@/lib/workspaceColors";
-
-type WorkspaceMode = "standard" | "sport";
-type ModeWorkspace = CustomWorkspace & { mode?: WorkspaceMode };
 
 export default function CustomWorkspaceCards() {
   const [items, setItems] = useState<CustomWorkspace[]>([]);
@@ -35,7 +32,7 @@ export default function CustomWorkspaceCards() {
     const created=createCustomWorkspace(value);
     const next=loadCustomWorkspaces().map(workspace=>{
       if(workspace.id!==created.id)return workspace;
-      return {...withWorkspaceColor(workspace,newColor),mode:newMode} as ModeWorkspace;
+      return {...withWorkspaceColor(workspace,newColor),mode:newMode};
     });
     saveCustomWorkspaces(next);
     setName("");
@@ -48,7 +45,7 @@ export default function CustomWorkspaceCards() {
 
   return <>
     {items.map((workspace) => {
-      const mode=((workspace as ModeWorkspace).mode??"standard") as WorkspaceMode;
+      const mode=workspace.mode??"standard";
       const active = workspace.state.briefing.tasks.filter((task) => !task.done && !task.waiting);
       const waiting = workspace.state.briefing.tasks.filter((task) => task.waiting).length;
       const nextAction = active[0];

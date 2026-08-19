@@ -2,44 +2,27 @@
 
 import Link from "next/link";
 import {
-  recurringComplete,
   recurringProgress,
   type CustomWorkspace,
-  type Project,
   type TaskItem,
 } from "@/lib/storage";
+import { selectActiveSportTasks } from "@/lib/sportHome";
 import { workspaceColor } from "@/lib/workspaceColors";
 
-type SportWorkspace = CustomWorkspace & { mode?: "standard" | "sport" };
-type SportTask = TaskItem & {
-  sportSteps?: string[];
-  projectPaused?: boolean;
-};
-
 function currentSportStep(task: TaskItem) {
-  const steps = (task as SportTask).sportSteps;
+  const steps = task.sportSteps;
   if (!steps?.length) return null;
   const index = Math.min(task.recurrenceHistory?.length ?? 0, steps.length - 1);
   return { label: steps[index], index, total: steps.length };
 }
 
-function activePhase(workspace: CustomWorkspace, tasks: TaskItem[]): Project | undefined {
-  return [...workspace.state.projects]
-    .filter((project) => !project.done)
-    .sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER))
-    .find((project) => {
-      const linked = tasks.filter((task) => task.projectId === project.id);
-      return linked.length === 0 || linked.some((task) => !(task as SportTask).projectPaused);
-    });
-}
-
 export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspace[] }) {
   const sportWorkspaces = workspaces.filter(
     (workspace) =>
-      (workspace as SportWorkspace).mode === "sport" ||
-      workspace.state.projects.some((project) => (project as Project & { mode?: string }).mode === "sport") ||
-      workspace.state.briefing.tasks.some((task) => !!(task as SportTask).sportSteps?.length),
-  ) as SportWorkspace[];
+      workspace.mode === "sport" ||
+      workspace.state.projects.some((project) => project.mode === "sport") ||
+      workspace.state.briefing.tasks.some((task) => !!task.sportSteps?.length),
+  );
 
   if (sportWorkspaces.length === 0) return null;
 
@@ -56,19 +39,13 @@ export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspa
       <div className="space-y-3">
         {sportWorkspaces.map((workspace) => {
           const tasks = workspace.state.briefing.tasks;
-          const phase = activePhase(workspace, tasks);
-          const phaseTasks = phase ? tasks.filter((task) => task.projectId === phase.id) : tasks;
-          const usableTasks = phaseTasks.filter(
-            (task) => !task.done && !task.waiting && !(task as SportTask).projectPaused,
-          );
+          const { phase, tasks: usableTasks } = selectActiveSportTasks(workspace.state.projects, tasks);
           const recurring = usableTasks.filter((task) => !!task.recurringTarget);
           const weeklyTarget = recurring.reduce((sum, task) => sum + recurringProgress(task).target, 0);
           const weeklyDone = recurring.reduce((sum, task) => {
             const progress = recurringProgress(task);
             return sum + Math.min(progress.count, progress.target);
           }, 0);
-          const nextTask = usableTasks.find((task) => !task.recurringTarget || !recurringComplete(task));
-          const nextStep = nextTask ? currentSportStep(nextTask) : null;
           const color = workspaceColor(workspace);
           const percent = weeklyTarget > 0 ? Math.min(100, Math.round((weeklyDone / weeklyTarget) * 100)) : 0;
 
@@ -102,11 +79,17 @@ export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspa
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
                   <div>
-                    <p className="text-[10px] font-mono uppercase tracking-widest text-muted">Prochaine séance</p>
-                    {nextTask ? (
-                      <div className="mt-2">
-                        <p className="text-lg leading-snug">{nextStep?.label ?? nextTask.text}</p>
-                        {nextStep && <p className="mt-1 text-[10px] font-mono uppercase text-muted">{nextTask.text} · séance {nextStep.index + 1}/{nextStep.total}</p>}
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-muted">Séances en cours</p>
+                    {usableTasks.length > 0 ? (
+                      <div className="mt-2 space-y-2">
+                        {usableTasks.slice(0, 3).map((task) => {
+                          const step = currentSportStep(task);
+                          return <div key={task.id}>
+                            <p className="text-base leading-snug">{step?.label ?? task.text}</p>
+                            {step && <p className="mt-0.5 text-[10px] font-mono uppercase text-muted">{task.text} · séance {step.index + 1}/{step.total}</p>}
+                          </div>;
+                        })}
+                        {usableTasks.length > 3 && <p className="text-[10px] text-muted">+ {usableTasks.length - 3} autre{usableTasks.length - 3 > 1 ? "s" : ""}</p>}
                       </div>
                     ) : (
                       <p className="mt-2 text-sm" style={{ color }}>Aucune séance active pour cette phase.</p>
