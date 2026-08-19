@@ -46,6 +46,30 @@ export default function ProjectsPanel({
         .workspace-mode-standard [class*="Mode Sport"] {
           display: none;
         }
+
+        /* Le menu d'action reste compact : les 7 fréquences occupent une petite grille
+           au lieu de sept lignes qui recouvrent les sous-projets suivants. */
+        .workspace-mode-locked .absolute.right-0.top-7.z-30.w-56 {
+          max-height: min(70vh, 420px);
+          overflow-y: auto;
+        }
+        .workspace-mode-locked .absolute.right-0.top-7.z-30.w-56 > button:nth-child(n + 8):nth-child(-n + 14) {
+          display: inline-flex;
+          width: calc(25% - 4px);
+          min-height: 30px;
+          margin: 2px;
+          padding: 5px 2px;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 6px;
+          font-size: 10px;
+        }
+        .workspace-mode-locked .absolute.right-0.top-7.z-30.w-56 > button:nth-child(15) {
+          display: block;
+          margin-top: 4px;
+        }
       `}</style>
     </div>
   );
