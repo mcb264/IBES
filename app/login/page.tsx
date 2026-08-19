@@ -43,7 +43,7 @@ export default function LoginPage() {
         <input className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3" type="password" placeholder="Mot de passe" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {error && <p className="text-sm opacity-80">{error}</p>}
         <button className="w-full rounded-xl bg-ink text-graphite px-4 py-3 font-semibold disabled:opacity-50" disabled={loading}>{loading ? "Connexion…" : "Se connecter"}</button>
-        <p className="text-center text-sm text-muted">Première connexion ? <Link href="/setup" className="text-teal">Créer mon accès</Link></p>
+        <div className="flex justify-center gap-4 text-sm text-muted"><Link href="/setup" className="text-teal">Créer mon accès</Link><Link href="/setup#reset" className="text-teal">Mot de passe oublié</Link></div>
       </form>
     </main>
   );

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const password = body?.password;
   const setupSecret = body?.setupSecret;
 
-  if ((mode !== "existing" && mode !== "new") || !isValidLogin(login) || !isValidPassword(password)) {
+  if ((mode !== "existing" && mode !== "new" && mode !== "reset") || !isValidLogin(login) || !isValidPassword(password)) {
     return NextResponse.json({ error: "Les informations fournies sont invalides" }, { status: 400 });
   }
   if (mode === "existing" && !isValidLogin(currentLogin)) {
@@ -38,13 +38,21 @@ export async function POST(request: NextRequest) {
            RETURNING id`,
           [login.trim(), passwordHash, currentLogin.trim()],
         )
-      : await pool.query(
+      : mode === "reset"
+        ? await pool.query(
+            `UPDATE ibes_users
+             SET password_hash = $1
+             WHERE lower(login) = lower($2)
+             RETURNING id`,
+            [passwordHash, login.trim()],
+          )
+        : await pool.query(
           "INSERT INTO ibes_users (login, password_hash) VALUES ($1, $2) RETURNING id",
           [login.trim(), passwordHash],
         );
     const user = result.rows[0];
     if (!user) {
-      return NextResponse.json({ error: "Compte introuvable ou déjà initialisé" }, { status: 409 });
+      return NextResponse.json({ error: mode === "reset" ? "Compte introuvable" : "Compte introuvable ou déjà initialisé" }, { status: 409 });
     }
 
     await pool.query("DELETE FROM ibes_sessions WHERE user_id = $1", [user.id]);
