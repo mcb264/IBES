@@ -10,14 +10,8 @@ import {
 } from "@/lib/storage";
 import { workspaceColor } from "@/lib/workspaceColors";
 
-type SportWorkspace = CustomWorkspace & { mode?: "standard" | "sport" };
-type SportTask = TaskItem & {
-  sportSteps?: string[];
-  projectPaused?: boolean;
-};
-
 function currentSportStep(task: TaskItem) {
-  const steps = (task as SportTask).sportSteps;
+  const steps = task.sportSteps;
   if (!steps?.length) return null;
   const index = Math.min(task.recurrenceHistory?.length ?? 0, steps.length - 1);
   return { label: steps[index], index, total: steps.length };
@@ -29,17 +23,17 @@ function activePhase(workspace: CustomWorkspace, tasks: TaskItem[]): Project | u
     .sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER))
     .find((project) => {
       const linked = tasks.filter((task) => task.projectId === project.id);
-      return linked.length === 0 || linked.some((task) => !(task as SportTask).projectPaused);
+      return linked.length === 0 || linked.some((task) => !task.projectPaused);
     });
 }
 
 export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspace[] }) {
   const sportWorkspaces = workspaces.filter(
     (workspace) =>
-      (workspace as SportWorkspace).mode === "sport" ||
-      workspace.state.projects.some((project) => (project as Project & { mode?: string }).mode === "sport") ||
-      workspace.state.briefing.tasks.some((task) => !!(task as SportTask).sportSteps?.length),
-  ) as SportWorkspace[];
+      workspace.mode === "sport" ||
+      workspace.state.projects.some((project) => project.mode === "sport") ||
+      workspace.state.briefing.tasks.some((task) => !!task.sportSteps?.length),
+  );
 
   if (sportWorkspaces.length === 0) return null;
 
@@ -59,7 +53,7 @@ export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspa
           const phase = activePhase(workspace, tasks);
           const phaseTasks = phase ? tasks.filter((task) => task.projectId === phase.id) : tasks;
           const usableTasks = phaseTasks.filter(
-            (task) => !task.done && !task.waiting && !(task as SportTask).projectPaused,
+            (task) => !task.done && !task.waiting && !task.projectPaused,
           );
           const recurring = usableTasks.filter((task) => !!task.recurringTarget);
           const weeklyTarget = recurring.reduce((sum, task) => sum + recurringProgress(task).target, 0);

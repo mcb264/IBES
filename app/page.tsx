@@ -2,9 +2,8 @@
 
 import {useEffect,useState} from "react";
 import Link from "next/link";
-import {CapacityLevel,DomainState,LoadInsight,LoadSettings,TaskItem,dismissLoadInsight,getLoadInsight,loadCustomWorkspaces,loadDailyCapacity,loadDomainState,loadModeRouge,localDateKey,saveDailyCapacity,saveDomainState,saveModeRouge} from "@/lib/storage";
+import {CapacityLevel,CustomWorkspace,DomainState,LoadInsight,LoadSettings,TaskItem,dismissLoadInsight,getLoadInsight,loadCustomWorkspaces,loadDailyCapacity,loadDomainState,loadModeRouge,localDateKey,saveDailyCapacity,saveDomainState,saveModeRouge} from "@/lib/storage";
 import {loadCurrentLoadSettings} from "@/lib/loadScale";
-import {migrateLegacyProjects} from "@/lib/projectMigration";
 import ModeRougeSwitch from "@/components/ModeRougeSwitch";
 import CustomWorkspaceCards from "@/components/CustomWorkspaceCards";
 import FlowMode from "@/components/FlowMode";
@@ -13,9 +12,9 @@ import DailyPlan from "@/components/DailyPlan";
 import SportHomeBox from "@/components/SportHomeBox";
 
 export default function Home(){
- const[modeRouge,setModeRouge]=useState(false),[flow,setFlow]=useState(false),[life,setLife]=useState<DomainState|null>(null),[capacity,setCapacity]=useState<CapacityLevel|null>(null),[settings,setSettings]=useState<LoadSettings|null>(null),[insight,setInsight]=useState<LoadInsight|null>(null),[addingLife,setAddingLife]=useState(false),[lifeText,setLifeText]=useState(""),[editingLifeId,setEditingLifeId]=useState<string|null>(null),[editingLifeText,setEditingLifeText]=useState("");
- const refresh=()=>{migrateLegacyProjects();setLife(loadDomainState("vie"));setCapacity(loadDailyCapacity()?.level??null);setSettings(loadCurrentLoadSettings())};
- useEffect(()=>{const s=loadCurrentLoadSettings();migrateLegacyProjects();setModeRouge(loadModeRouge());setLife(loadDomainState("vie"));setCapacity(loadDailyCapacity()?.level??null);setSettings(s);setInsight(getLoadInsight(s));window.addEventListener("focus",refresh);return()=>window.removeEventListener("focus",refresh)},[]);
+ const[modeRouge,setModeRouge]=useState(false),[flow,setFlow]=useState(false),[life,setLife]=useState<DomainState|null>(null),[workspaces,setWorkspaces]=useState<CustomWorkspace[]>([]),[capacity,setCapacity]=useState<CapacityLevel|null>(null),[settings,setSettings]=useState<LoadSettings|null>(null),[insight,setInsight]=useState<LoadInsight|null>(null),[addingLife,setAddingLife]=useState(false),[lifeText,setLifeText]=useState(""),[editingLifeId,setEditingLifeId]=useState<string|null>(null),[editingLifeText,setEditingLifeText]=useState("");
+ const refresh=()=>{setLife(loadDomainState("vie"));setWorkspaces(loadCustomWorkspaces());setCapacity(loadDailyCapacity()?.level??null);setSettings(loadCurrentLoadSettings())};
+ useEffect(()=>{const s=loadCurrentLoadSettings();setModeRouge(loadModeRouge());setLife(loadDomainState("vie"));setWorkspaces(loadCustomWorkspaces());setCapacity(loadDailyCapacity()?.level??null);setSettings(s);setInsight(getLoadInsight(s));window.addEventListener("focus",refresh);window.addEventListener("ibes:workspaces-changed",refresh);return()=>{window.removeEventListener("focus",refresh);window.removeEventListener("ibes:workspaces-changed",refresh)}},[]);
  if(!life||!settings)return null;
  const chooseCapacity=(l:CapacityLevel)=>{setCapacity(l);saveDailyCapacity(l)};
  const toggleDown=()=>{const n=!modeRouge;setModeRouge(n);saveModeRouge(n);if(n)setFlow(false)};
@@ -26,7 +25,6 @@ export default function Home(){
  const completeLife=(id:string)=>saveLife({...life,briefing:{...life.briefing,tasks:life.briefing.tasks.map(t=>t.id===id?{...t,done:true}:t)}});
  const renameLife=(id:string)=>{const text=editingLifeText.trim();if(text)saveLife({...life,briefing:{...life.briefing,tasks:life.briefing.tasks.map(t=>t.id===id?{...t,text}:t)}});setEditingLifeId(null);setEditingLifeText("")};
  const today=localDateKey();
- const workspaces=loadCustomWorkspaces();
  const deadlines=workspaces.flatMap(w=>w.state.projects.filter(p=>!p.done&&p.dueDate&&p.dueDate>=today).map(p=>({...p,workspace:w.name,href:`/projet/${w.id}`}))).sort((a,b)=>a.dueDate!.localeCompare(b.dueDate!)).slice(0,4);
  return <main className="min-h-screen"><FlowMode active={flow} onExit={()=>setFlow(false)}/><header className="border-b border-white/10 px-6 py-5 flex justify-between"><div><h1 className="font-display text-3xl">IBES</h1><p className="text-xs text-muted font-mono uppercase tracking-widest">console personnelle</p></div><div className="flex items-center gap-2"><Link href="/historique" className="text-xs font-mono uppercase text-muted mr-2">Historique</Link><Link href="/reglages" className="text-xs font-mono uppercase text-muted mr-2">Réglages</Link><ModeRougeSwitch active={modeRouge} onToggle={toggleDown}/><button onClick={toggleFlow} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border font-mono text-[11px] uppercase tracking-widest transition-colors ${flow?"border-teal text-teal bg-teal/10":"border-white/15 text-muted hover:text-ink"}`}><span className={`w-2 h-2 rounded-full ${flow?"bg-teal animate-pulse":"bg-muted"}`}/>↑ Flow</button></div></header>
  <section className="px-6 py-8 max-w-5xl mx-auto space-y-9">

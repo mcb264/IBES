@@ -5,20 +5,13 @@ import {
   EffortLevel,
   Project,
   TaskItem,
+  WorkspaceMode,
   completeRecurringTask,
   localDateKey,
 } from "@/lib/storage";
 import SportProgramEditor from "./projects/SportProgramEditor";
 import SubProjectMenu from "./projects/SubProjectMenu";
 import TaskRow from "./projects/TaskRow";
-
-type ProjectMode = "standard" | "sport";
-type SportProject = Project & { mode?: ProjectMode };
-type SportTask = TaskItem & { sportSteps?: string[] };
-type ProjectTask = TaskItem & {
-  projectPaused?: boolean;
-  projectPausedWasWaiting?: boolean;
-};
 
 type Props = {
   projects: Project[];
@@ -32,7 +25,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [projectMode, setProjectMode] = useState<ProjectMode>("standard");
+  const [projectMode, setProjectMode] = useState<WorkspaceMode>("standard");
   const [newActions, setNewActions] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
   const [menu, setMenu] = useState<string | null>(null);
@@ -56,7 +49,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
 
   const addProject = () => {
     if (!name.trim()) return;
-    const project: SportProject = {
+    const project: Project = {
       id: crypto.randomUUID(),
       name: name.trim(),
       goal: goal.trim(),
@@ -96,14 +89,14 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
   };
 
   const isProjectPaused = (projectId: string) =>
-    tasks.some((task) => task.projectId === projectId && (task as ProjectTask).projectPaused);
+    tasks.some((task) => task.projectId === projectId && task.projectPaused);
 
   const toggleProjectPause = (projectId: string) => {
     if (!onTasksChange) return;
     const pause = !isProjectPaused(projectId);
     onTasksChange(tasks.map((task) => {
       if (task.projectId !== projectId) return task;
-      const marked = task as ProjectTask;
+      const marked = task;
       if (pause) {
         return {
           ...task,
@@ -113,7 +106,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
           capacityOverrideDate: undefined,
           projectPaused: true,
           projectPausedWasWaiting: !!task.waiting,
-        } as ProjectTask;
+        };
       }
       if (!marked.projectPaused) return task;
       return {
@@ -124,7 +117,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
         projectPausedWasWaiting: undefined,
         todayDate: undefined,
         capacityOverrideDate: undefined,
-      } as ProjectTask;
+      };
     }));
     setMenu(null);
   };
@@ -140,7 +133,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
       effort: "normal",
       projectId,
       ...(paused ? { waiting: true, waitingSince: today, projectPaused: true, projectPausedWasWaiting: false } : {}),
-    } as ProjectTask]);
+    }]);
     setNewActions((current) => ({ ...current, [projectId]: "" }));
   };
 
@@ -150,7 +143,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
 
   const toggleAction = (id: string) => {
     const task = tasks.find((item) => item.id === id);
-    if (!task || (task as ProjectTask).projectPaused) return;
+    if (!task || task.projectPaused) return;
     if (task.recurringTarget) {
       onTasksChange?.(tasks.map((item) => item.id === id ? completeRecurringTask(item) : item));
       return;
@@ -182,7 +175,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
 
   const toggleWaiting = (id: string) => {
     const task = tasks.find((item) => item.id === id);
-    if (!task || (task as ProjectTask).projectPaused) return;
+    if (!task || task.projectPaused) return;
     patchAction(id, {
       waiting: !task.waiting,
       waitingSince: !task.waiting ? today : undefined,
@@ -216,14 +209,14 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
 
   const startSportProgram = (task: TaskItem) => {
     setEditingSportProgram(task.id);
-    setSportProgramText(((task as SportTask).sportSteps ?? []).join("\n"));
+    setSportProgramText((task.sportSteps ?? []).join("\n"));
     setMenu(null);
   };
 
   const saveSportProgram = (id: string) => {
     const steps = sportProgramText.split("\n").map((line) => line.trim()).filter(Boolean);
     onTasksChange?.(tasks.map((task) => task.id === id
-      ? ({ ...task, sportSteps: steps.length ? steps : undefined } as SportTask)
+      ? { ...task, sportSteps: steps.length ? steps : undefined }
       : task));
     setEditingSportProgram(null);
     setSportProgramText("");
@@ -274,7 +267,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
             <input value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Résultat attendu" className="rounded-lg border border-white/10 bg-graphite px-4 py-3" />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            {(["standard", "sport"] as ProjectMode[]).map((mode) => {
+            {(["standard", "sport"] as WorkspaceMode[]).map((mode) => {
               const active = projectMode === mode;
               return (
                 <button key={mode} type="button" onClick={() => setProjectMode(mode)} className="rounded-xl border bg-graphite/50 p-4 text-left transition" style={{ borderColor: active ? accentColor : "rgba(255,255,255,.10)" }}>
@@ -299,7 +292,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
         )}
 
         {ordered.map((project, projectIndex) => {
-          const sportProject = project as SportProject;
+          const sportProject = project;
           const linked = tasks.filter((task) => task.projectId === project.id);
           const open = linked.filter((task) => !task.done);
           const done = linked.filter((task) => task.done);

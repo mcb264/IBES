@@ -4,8 +4,6 @@ import type { EffortLevel, TaskItem } from "@/lib/storage";
 import { recurringProgress } from "@/lib/storage";
 import TaskMenu from "./TaskMenu";
 
-type ProjectTask = TaskItem & { projectPaused?: boolean };
-type SportTask = TaskItem & { sportSteps?: string[] };
 
 type Props = {
   task: TaskItem;
@@ -38,7 +36,7 @@ type Props = {
 const EFFORT_LABEL: Record<EffortLevel, string> = { light: "Basse", normal: "Normale", heavy: "Haute" };
 
 function sportStep(task: TaskItem) {
-  const steps = (task as SportTask).sportSteps;
+  const steps = task.sportSteps;
   if (!steps?.length) return null;
   const index = Math.min(task.recurrenceHistory?.length ?? 0, steps.length - 1);
   return { label: steps[index], index, total: steps.length };
@@ -49,7 +47,7 @@ export default function TaskRow(props: Props) {
   const progress = recurringProgress(task);
   const recurrenceComplete = !!task.recurringTarget && progress.target > 0 && progress.count >= progress.target;
   const nextSportStep = sportMode ? sportStep(task) : null;
-  const paused = !!(task as ProjectTask).projectPaused;
+  const paused = !!task.projectPaused;
 
   return (
     <div

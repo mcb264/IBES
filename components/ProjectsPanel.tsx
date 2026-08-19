@@ -2,10 +2,9 @@
 
 import ProjectsPanelV2 from "./ProjectsPanelV2";
 import ProjectUiTheme from "./projects/ProjectUiTheme";
-import type { Project, TaskItem } from "@/lib/storage";
+import type { Project, TaskItem, WorkspaceMode } from "@/lib/storage";
 
-export type WorkspaceMode = "standard" | "sport";
-type ModeProject = Project & { mode?: WorkspaceMode };
+export type { WorkspaceMode } from "@/lib/storage";
 
 type Props = {
   projects: Project[];
@@ -31,7 +30,7 @@ export default function ProjectsPanel({
   onChange,
   onTasksChange,
 }: Props) {
-  const lockMode = (project: Project): ModeProject => ({ ...project, mode: workspaceMode });
+  const lockMode = (project: Project): Project => ({ ...project, mode: workspaceMode });
   const lockedProjects = projects.map(lockMode);
 
   return (
