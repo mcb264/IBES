@@ -80,25 +80,25 @@ export default function ProjectsPanel({
         const projectMenu = menus.find(menu => menu.textContent?.includes("Supprimer le projet"));
         if (!projectMenu) return;
 
-        const old = projectMenu.querySelector<HTMLButtonElement>("[data-project-pause]");
-        if (old) old.remove();
+        let button = projectMenu.querySelector<HTMLButtonElement>("[data-project-pause]");
+        if (!button) {
+          button = document.createElement("button");
+          button.type = "button";
+          button.dataset.projectPause = project.id;
+          button.className = "w-full px-3 py-2 text-left text-xs text-muted";
+          const deleteButton = Array.from(projectMenu.querySelectorAll("button")).find(el =>
+            el.textContent?.includes("Supprimer le projet"),
+          );
+          if (deleteButton) projectMenu.insertBefore(button, deleteButton);
+          else projectMenu.appendChild(button);
+        }
 
-        const button = document.createElement("button");
-        button.type = "button";
-        button.dataset.projectPause = project.id;
-        button.className = "w-full px-3 py-2 text-left text-xs text-muted";
         button.textContent = isProjectPaused(project.id) ? "Reprendre le sous-projet" : "Mettre en attente";
         button.onclick = event => {
           event.preventDefault();
           event.stopPropagation();
           toggleProjectPause(project.id);
         };
-
-        const deleteButton = Array.from(projectMenu.querySelectorAll("button")).find(el =>
-          el.textContent?.includes("Supprimer le projet"),
-        );
-        if (deleteButton) projectMenu.insertBefore(button, deleteButton);
-        else projectMenu.appendChild(button);
       });
     };
 
