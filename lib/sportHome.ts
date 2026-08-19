@@ -18,9 +18,10 @@ export function selectActiveSportPhase(projects: Project[], tasks: TaskItem[]) {
 
 export function selectActiveSportTasks(projects: Project[], tasks: TaskItem[]) {
   const phase = selectActiveSportPhase(projects, tasks);
+  const active = tasks.filter(isActiveSportTask);
   const candidates = phase
-    ? tasks.filter((task) => task.projectId === phase.id)
-    : tasks.filter((task) => !task.projectId);
+    ? [...active.filter((task) => task.projectId === phase.id), ...active.filter((task) => task.projectId !== phase.id)]
+    : active;
 
-  return { phase, tasks: candidates.filter(isActiveSportTask) };
+  return { phase, tasks: candidates };
 }
