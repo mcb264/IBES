@@ -7,14 +7,10 @@ import {
   TaskItem,
   completeRecurringTask,
   localDateKey,
-  recurringProgress,
 } from "@/lib/storage";
-
-const EFFORT_LABEL: Record<EffortLevel, string> = {
-  light: "Basse",
-  normal: "Normale",
-  heavy: "Haute",
-};
+import SportProgramEditor from "./projects/SportProgramEditor";
+import SubProjectMenu from "./projects/SubProjectMenu";
+import TaskRow from "./projects/TaskRow";
 
 type ProjectMode = "standard" | "sport";
 type SportProject = Project & { mode?: ProjectMode };
@@ -31,13 +27,6 @@ type Props = {
   onChange: (projects: Project[]) => void;
   onTasksChange?: (tasks: TaskItem[]) => void;
 };
-
-function currentSportStep(task: TaskItem) {
-  const sportTask = task as SportTask;
-  if (!sportTask.sportSteps?.length) return null;
-  const index = Math.min(task.recurrenceHistory?.length ?? 0, sportTask.sportSteps.length - 1);
-  return { label: sportTask.sportSteps[index], index, total: sportTask.sportSteps.length };
-}
 
 export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange, onTasksChange }: Props) {
   const [name, setName] = useState("");
@@ -254,6 +243,11 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
     setDragged(null);
   };
 
+  const cancelSportProgram = () => {
+    setEditingSportProgram(null);
+    setSportProgramText("");
+  };
+
   const editingSportTask = editingSportProgram ? tasks.find((task) => task.id === editingSportProgram) : null;
 
   return (
@@ -261,27 +255,25 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-[.22em] text-muted">Pilotage</p>
-          <h2 className="font-display text-3xl mt-1" style={{ color: accentColor }}>Projets</h2>
-          <p className="text-sm text-muted mt-2">La couleur identifie le grand projet sans envahir l’interface.</p>
+          <h2 className="mt-1 font-display text-3xl" style={{ color: accentColor }}>Projets</h2>
+          <p className="mt-2 text-sm text-muted">La couleur identifie le grand projet sans envahir l’interface.</p>
         </div>
-        <button
-          onClick={() => setCreating((value) => !value)}
-          className="shrink-0 rounded-full border border-white/15 px-4 py-2 text-[11px] font-mono uppercase tracking-widest"
-          style={{ color: accentColor }}
-        >{creating ? "Fermer" : "+ Nouveau"}</button>
+        <button onClick={() => setCreating((value) => !value)} className="shrink-0 rounded-full border border-white/15 px-4 py-2 text-[11px] font-mono uppercase tracking-widest" style={{ color: accentColor }}>
+          {creating ? "Fermer" : "+ Nouveau"}
+        </button>
       </div>
 
       {creating && (
-        <div className="rounded-2xl border border-white/10 bg-panel p-5 space-y-5" style={{ boxShadow: `inset 3px 0 0 ${accentColor}` }}>
+        <div className="space-y-5 rounded-2xl border border-white/10 bg-panel p-5" style={{ boxShadow: `inset 3px 0 0 ${accentColor}` }}>
           <div>
             <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: accentColor }}>Nouveau projet</p>
             <p className="mt-1 text-xs text-muted">Choisis son fonctionnement. Un projet Sport reste un projet IBES normal.</p>
           </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom du projet" className="bg-graphite border border-white/10 rounded-lg px-4 py-3" />
-            <input value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Résultat attendu" className="bg-graphite border border-white/10 rounded-lg px-4 py-3" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom du projet" className="rounded-lg border border-white/10 bg-graphite px-4 py-3" />
+            <input value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Résultat attendu" className="rounded-lg border border-white/10 bg-graphite px-4 py-3" />
           </div>
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {(["standard", "sport"] as ProjectMode[]).map((mode) => {
               const active = projectMode === mode;
               return (
@@ -292,16 +284,16 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
               );
             })}
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="flex-1 bg-graphite border border-white/10 rounded-lg px-4 py-3 text-sm" />
-            <button onClick={addProject} disabled={!name.trim()} className="rounded-lg px-5 py-3 font-mono text-xs uppercase text-graphite disabled:opacity-40" style={{ backgroundColor: accentColor }}>Créer</button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="flex-1 rounded-lg border border-white/10 bg-graphite px-4 py-3 text-sm" />
+            <button onClick={addProject} disabled={!name.trim()} className="rounded-lg px-5 py-3 text-xs font-mono uppercase text-graphite disabled:opacity-40" style={{ backgroundColor: accentColor }}>Créer</button>
           </div>
         </div>
       )}
 
       <div className="space-y-5">
         {projects.length === 0 && (
-          <div className="rounded-2xl border border-white/10 border-dashed px-6 py-10 text-center">
+          <div className="rounded-2xl border border-dashed border-white/10 px-6 py-10 text-center">
             <p className="font-display text-xl" style={{ color: accentColor }}>Aucun projet.</p>
           </div>
         )}
@@ -332,12 +324,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
             >
               <div className="p-5 sm:p-6">
                 <div className="flex items-start gap-4">
-                  <button
-                    data-no-project-drag
-                    onClick={() => onChange(projects.map((item) => item.id === project.id ? { ...item, done: !item.done } : item))}
-                    className="mt-1 w-6 h-6 rounded-md border border-white/20 shrink-0 text-xs"
-                    style={project.done ? { color: accentColor } : { color: "transparent" }}
-                  >✓</button>
+                  <button data-no-project-drag onClick={() => onChange(projects.map((item) => item.id === project.id ? { ...item, done: !item.done } : item))} className="mt-1 h-6 w-6 shrink-0 rounded-md border border-white/20 text-xs" style={project.done ? { color: accentColor } : { color: "transparent" }}>✓</button>
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -347,19 +334,12 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
                       {sportProject.mode === "sport" && <span className="rounded-full border border-white/10 px-2 py-1 text-[8px] font-mono uppercase" style={{ color: accentColor }}>Sport</span>}
                       {paused && <span className="rounded-full border border-white/10 px-2 py-1 text-[8px] font-mono uppercase text-muted">En attente</span>}
                     </div>
-                    {project.goal && <p className="text-sm text-muted mt-3">{project.goal}</p>}
-                    <div className="flex flex-wrap gap-2 mt-4">
+                    {project.goal && <p className="mt-3 text-sm text-muted">{project.goal}</p>}
+                    <div className="mt-4 flex flex-wrap gap-2">
                       <span className="rounded-full border border-white/10 bg-graphite px-2.5 py-1 text-[10px] font-mono uppercase text-muted">{open.length} à faire</span>
                       {done.length > 0 && <span className="rounded-full border border-white/10 bg-graphite px-2.5 py-1 text-[10px] font-mono uppercase text-muted">{done.length} terminée{done.length > 1 ? "s" : ""}</span>}
                       {editingDate === project.id ? (
-                        <input
-                          data-no-project-drag autoFocus type="date" defaultValue={project.dueDate || ""}
-                          onBlur={(event) => {
-                            onChange(projects.map((item) => item.id === project.id ? { ...item, dueDate: event.target.value || undefined } : item));
-                            setEditingDate(null);
-                          }}
-                          className="bg-graphite rounded-full px-3 py-1 text-[10px] border border-white/10"
-                        />
+                        <input data-no-project-drag autoFocus type="date" defaultValue={project.dueDate || ""} onBlur={(event) => { onChange(projects.map((item) => item.id === project.id ? { ...item, dueDate: event.target.value || undefined } : item)); setEditingDate(null); }} className="rounded-full border border-white/10 bg-graphite px-3 py-1 text-[10px]" />
                       ) : (
                         <button data-no-project-drag onClick={() => setEditingDate(project.id)} className="rounded-full border border-white/10 bg-graphite px-2.5 py-1 text-[10px] font-mono uppercase text-muted">
                           {project.dueDate ? new Date(`${project.dueDate}T00:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "+ échéance"}
@@ -371,102 +351,69 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
                   <div data-no-project-drag className="relative" onPointerDown={(e) => e.stopPropagation()}>
                     <button type="button" onClick={() => setMenu(menu === `p:${project.id}` ? null : `p:${project.id}`)} className="px-2 py-1 text-muted">•••</button>
                     {menu === `p:${project.id}` && (
-                      <div className="absolute right-0 top-8 z-20 w-52 rounded-lg border border-white/10 bg-graphite p-1 shadow-xl">
-                        <button disabled={projectIndex === 0} onClick={() => moveProject(project.id, -1)} className="w-full px-3 py-2 text-left text-xs text-muted disabled:opacity-30">↑ Monter</button>
-                        <button disabled={projectIndex === ordered.length - 1} onClick={() => moveProject(project.id, 1)} className="w-full px-3 py-2 text-left text-xs text-muted disabled:opacity-30">↓ Descendre</button>
-                        <div className="my-1 border-t border-white/10" />
-                        <button onClick={() => toggleProjectPause(project.id)} className="w-full px-3 py-2 text-left text-xs text-muted">{paused ? "Reprendre le sous-projet" : "Mettre en attente"}</button>
-                        <button onClick={() => { onChange(projects.filter((item) => item.id !== project.id)); setMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-alert">Supprimer le projet</button>
-                      </div>
+                      <SubProjectMenu
+                        paused={paused}
+                        canMoveUp={projectIndex > 0}
+                        canMoveDown={projectIndex < ordered.length - 1}
+                        onMoveUp={() => moveProject(project.id, -1)}
+                        onMoveDown={() => moveProject(project.id, 1)}
+                        onTogglePause={() => toggleProjectPause(project.id)}
+                        onDelete={() => { onChange(projects.filter((item) => item.id !== project.id)); setMenu(null); }}
+                      />
                     )}
                   </div>
                 </div>
               </div>
 
-              <div data-no-project-drag className="border-t border-white/10 px-5 sm:px-6 py-5 rounded-b-2xl bg-white/[.015]">
+              <div data-no-project-drag className="rounded-b-2xl border-t border-white/10 bg-white/[.015] px-5 py-5 sm:px-6">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-[10px] font-mono uppercase tracking-[.18em]" style={{ color: accentColor }}>Actions</p>
                   {sportProject.mode === "sport" && <span className="text-[9px] font-mono uppercase text-muted">Séances évolutives disponibles</span>}
                 </div>
 
                 <div className="space-y-2">
-                  {open.length === 0 && <p className="text-sm text-muted py-2">Aucune action ouverte.</p>}
-                  {open.map((task, taskIndex) => {
-                    const progress = recurringProgress(task);
-                    const recurrenceComplete = !!task.recurringTarget && progress.target > 0 && progress.count >= progress.target;
-                    const sportStep = sportProject.mode === "sport" ? currentSportStep(task) : null;
-                    const taskPaused = !!(task as ProjectTask).projectPaused;
-
-                    return (
-                      <div
-                        key={task.id}
-                        draggable={!taskPaused}
-                        onDragStart={() => !taskPaused && setDragged(task.id)}
-                        onDragEnd={() => setDragged(null)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => !taskPaused && reorder(project.id, task.id)}
-                        className="flex items-center gap-3 rounded-xl border border-white/10 bg-graphite/40 px-3 py-3.5"
-                        style={{ boxShadow: `inset 2px 0 0 ${accentColor}`, opacity: task.waiting ? 0.55 : 1 }}
-                      >
-                        <button onClick={() => toggleAction(task.id)} disabled={recurrenceComplete || taskPaused} className="w-5 h-5 rounded border border-white/20 text-transparent disabled:opacity-30">✓</button>
-                        <span className="font-mono text-[10px] text-muted">{String(taskIndex + 1).padStart(2, "0")}</span>
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: accentColor }} />
-                        <div className="min-w-0 flex-1">
-                          {editingActionText === task.id ? (
-                            <input
-                              autoFocus value={actionText} onChange={(e) => setActionText(e.target.value)} onBlur={() => renameAction(task.id)}
-                              onKeyDown={(e) => { if (e.key === "Enter") renameAction(task.id); if (e.key === "Escape") { setEditingActionText(null); setActionText(""); } }}
-                              className="w-full rounded border border-white/20 bg-graphite px-2 py-1 text-sm outline-none"
-                            />
-                          ) : <span className="text-sm">{task.text}</span>}
-                          {sportStep && <p className="mt-1 text-[11px] text-muted"><span style={{ color: accentColor }}>Prochaine séance · </span>{sportStep.label}</p>}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {!!task.recurringTarget && <span className="rounded-full border border-white/10 px-2 py-1 text-[8px] font-mono uppercase" style={recurrenceComplete ? { color: accentColor } : undefined}>{progress.count}/{progress.target} semaine</span>}
-                          {sportStep && <span className="rounded-full border border-white/10 px-2 py-1 text-[8px] font-mono uppercase text-muted">{sportStep.index + 1}/{sportStep.total}</span>}
-                          <span className="rounded-full border border-white/10 px-2 py-1 text-[8px] font-mono uppercase text-muted">{EFFORT_LABEL[task.effort ?? "normal"]}</span>
-                          {task.todayDate === today && <span className="rounded-full border border-white/10 px-2 py-1 text-[8px] font-mono uppercase text-muted">Aujourd’hui</span>}
-                          {task.waiting && <span className="rounded-full border border-white/10 px-2 py-1 text-[8px] font-mono uppercase text-muted">En attente</span>}
-                          {editingActionDate === task.id ? (
-                            <input autoFocus type="date" defaultValue={task.dueDate || ""} onBlur={(e) => { patchAction(task.id, { dueDate: e.target.value || undefined }); setEditingActionDate(null); }} className="bg-graphite rounded-md px-2 py-1 text-[9px] border border-white/10" />
-                          ) : task.dueDate ? (
-                            <button onClick={() => setEditingActionDate(task.id)} className="text-[9px] font-mono text-muted">{new Date(`${task.dueDate}T00:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</button>
-                          ) : null}
-
-                          <div className="relative" onPointerDown={(e) => e.stopPropagation()}>
-                            <button onClick={() => setMenu(menu === `a:${task.id}` ? null : `a:${task.id}`)} className="px-1.5 text-muted">•••</button>
-                            {menu === `a:${task.id}` && (
-                              <div className="absolute right-0 top-7 z-30 w-56 rounded-lg border border-white/10 bg-graphite p-1 shadow-xl">
-                                <button onClick={() => startRenamingAction(task)} className="w-full px-3 py-2 text-left text-xs text-muted">Renommer</button>
-                                <p className="px-3 pt-2 pb-1 text-[9px] font-mono uppercase text-muted">Charge</p>
-                                {([ ["light", "Basse"], ["normal", "Normale"], ["heavy", "Haute"] ] as const).map(([value, label]) => (
-                                  <button key={value} onClick={() => setEffort(task.id, value)} className="w-full px-3 py-1.5 text-left text-xs" style={task.effort === value || (!task.effort && value === "normal") ? { color: accentColor } : undefined}>{label}</button>
-                                ))}
-                                <button onClick={() => { setEditingActionDate(task.id); setMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-muted">Échéance</button>
-                                <p className="px-3 pt-2 pb-1 text-[9px] font-mono uppercase text-muted">Récurrence</p>
-                                {[1,2,3,4,5,6,7].map((times) => <button key={times} onClick={() => setRecurrence(task.id, times)} className="w-full px-3 py-1.5 text-left text-xs" style={task.recurringTarget === times ? { color: accentColor } : undefined}>{times}× / semaine</button>)}
-                                {!!task.recurringTarget && <button onClick={() => setRecurrence(task.id)} className="w-full px-3 py-1.5 text-left text-xs text-muted">Aucune récurrence</button>}
-                                {sportProject.mode === "sport" && <><div className="my-1 border-t border-white/10" /><p className="px-3 pt-2 pb-1 text-[9px] font-mono uppercase" style={{ color: accentColor }}>Mode Sport</p><button onClick={() => startSportProgram(task)} className="w-full px-3 py-2 text-left text-xs text-muted">Séances évolutives</button></>}
-                                <button disabled={taskPaused} onClick={() => toggleWaiting(task.id)} className="w-full px-3 py-2 text-left text-xs text-muted disabled:opacity-30">{task.waiting ? "Réactiver" : "Mettre en attente"}</button>
-                                <button onClick={() => deleteAction(task.id)} className="w-full px-3 py-2 text-left text-xs text-alert">Supprimer</button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {open.length === 0 && <p className="py-2 text-sm text-muted">Aucune action ouverte.</p>}
+                  {open.map((task, taskIndex) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      index={taskIndex}
+                      accentColor={accentColor}
+                      today={today}
+                      sportMode={sportProject.mode === "sport"}
+                      editingText={editingActionText === task.id}
+                      editText={actionText}
+                      editingDate={editingActionDate === task.id}
+                      menuOpen={menu === `a:${task.id}`}
+                      onEditTextChange={setActionText}
+                      onRenameCommit={() => renameAction(task.id)}
+                      onRenameCancel={() => { setEditingActionText(null); setActionText(""); }}
+                      onToggle={() => toggleAction(task.id)}
+                      onDragStart={() => setDragged(task.id)}
+                      onDragEnd={() => setDragged(null)}
+                      onDrop={() => reorder(project.id, task.id)}
+                      onStartRename={() => startRenamingAction(task)}
+                      onStartDate={() => { setEditingActionDate(task.id); setMenu(null); }}
+                      onDateCommit={(value) => { patchAction(task.id, { dueDate: value }); setEditingActionDate(null); }}
+                      onMenuToggle={() => setMenu(menu === `a:${task.id}` ? null : `a:${task.id}`)}
+                      onEffort={(effort) => setEffort(task.id, effort)}
+                      onRecurrence={(times) => setRecurrence(task.id, times)}
+                      onSportProgram={() => startSportProgram(task)}
+                      onToggleWaiting={() => toggleWaiting(task.id)}
+                      onDelete={() => deleteAction(task.id)}
+                    />
+                  ))}
                 </div>
 
                 {editingSportTask?.projectId === project.id && (
-                  <div className="mt-3 rounded-xl border border-white/10 bg-graphite/60 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div><p className="text-xs font-medium" style={{ color: accentColor }}>Séances évolutives · {editingSportTask.text}</p><p className="mt-1 text-[11px] text-muted">1 ligne = 1 séance. Après chaque validation, IBES affiche automatiquement la suivante.</p></div>
-                      <button onClick={() => { setEditingSportProgram(null); setSportProgramText(""); }} className="text-xs text-muted">×</button>
-                    </div>
-                    <textarea autoFocus rows={7} value={sportProgramText} onChange={(e) => setSportProgramText(e.target.value)} placeholder={"Course facile — 25 min\nCourse facile — 25 min\nSortie longue — 35 min\nCourse facile — 30 min\n..."} className="mt-3 w-full resize-y rounded-lg border border-white/10 bg-panel px-3 py-3 text-sm outline-none" />
-                    <div className="mt-3 flex items-center justify-between gap-3"><p className="text-[10px] text-muted">Tu peux coller tout ton programme d’un coup.</p><div className="flex gap-2"><button onClick={() => { setEditingSportProgram(null); setSportProgramText(""); }} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono uppercase text-muted">Annuler</button><button onClick={() => saveSportProgram(editingSportTask.id)} className="rounded-lg px-3 py-2 text-[10px] font-mono uppercase text-graphite" style={{ backgroundColor: accentColor }}>Enregistrer</button></div></div>
-                  </div>
+                  <SportProgramEditor
+                    task={editingSportTask}
+                    accentColor={accentColor}
+                    value={sportProgramText}
+                    onChange={setSportProgramText}
+                    onCancel={cancelSportProgram}
+                    onSave={() => saveSportProgram(editingSportTask.id)}
+                  />
                 )}
 
                 {done.length > 0 && (
@@ -475,7 +422,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
                     <div className="mt-2 space-y-1">
                       {done.map((task) => (
                         <div key={task.id} className="flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm text-muted">
-                          <button onClick={() => toggleAction(task.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left"><span style={{ color: accentColor }}>✓</span><span className="line-through flex-1 truncate">{task.text}</span><span className="text-[9px] font-mono uppercase">Réouvrir</span></button>
+                          <button onClick={() => toggleAction(task.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left"><span style={{ color: accentColor }}>✓</span><span className="flex-1 truncate line-through">{task.text}</span><span className="text-[9px] font-mono uppercase">Réouvrir</span></button>
                           <button onClick={() => startRenamingAction(task)} className="text-muted/50 hover:text-ink">✎</button>
                           <button onClick={() => deleteAction(task.id)} className="text-muted/30 hover:text-alert">×</button>
                         </div>
@@ -486,7 +433,7 @@ export default function ProjectsPanelV2({ projects, tasks, accentColor, onChange
 
                 {onTasksChange && (
                   <div className="mt-4 flex gap-2">
-                    <input value={newActions[project.id] || ""} onChange={(e) => setNewActions((current) => ({ ...current, [project.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") addAction(project.id); }} placeholder={sportProject.mode === "sport" ? "Ajouter une séance / action…" : "Ajouter une action…"} className="min-w-0 flex-1 bg-transparent border-b border-white/10 px-1 py-2 text-sm outline-none" />
+                    <input value={newActions[project.id] || ""} onChange={(e) => setNewActions((current) => ({ ...current, [project.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") addAction(project.id); }} placeholder={sportProject.mode === "sport" ? "Ajouter une séance / action…" : "Ajouter une action…"} className="min-w-0 flex-1 border-b border-white/10 bg-transparent px-1 py-2 text-sm outline-none" />
                     <button onClick={() => addAction(project.id)} disabled={!(newActions[project.id] || "").trim()} className="text-[10px] font-mono uppercase tracking-widest disabled:opacity-30" style={{ color: accentColor }}>Ajouter</button>
                   </div>
                 )}
