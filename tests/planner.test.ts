@@ -61,6 +61,15 @@ const sportSelection = selectActiveSportTasks(
 assert.equal(sportSelection.phase?.id, "active", "sport home skips empty phases and selects the phase with active work");
 assert.deepEqual(sportSelection.tasks.map((task) => task.id), ["session"], "sport home exposes active sessions from the selected phase");
 
+const mixedSportSelection = selectActiveSportTasks(
+  [{ id: "phase", name: "Phase", goal: "", done: false }],
+  [
+    { id: "linked", text: "Séance liée", done: false, projectId: "phase" },
+    { id: "unassigned", text: "Séance libre", done: false },
+  ],
+);
+assert.deepEqual(mixedSportSelection.tasks.map((task) => task.id), ["linked", "unassigned"], "sport home keeps active unassigned sessions visible");
+
 const converted = withWorkspaceMode({...normalized[0],state:{...normalized[0].state,projects:[{id:"phase",name:"Préparation",goal:"",done:false}]}}, "sport");
 assert.equal(converted.mode, "sport", "an existing workspace can be converted to Sport");
 assert.ok(converted.state.projects.every((project) => project.mode === "sport"), "Sport conversion keeps subproject modes coherent");
