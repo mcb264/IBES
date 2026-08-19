@@ -1,10 +1,11 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import ProjectsPanelV2 from "./ProjectsPanelV2";
 import { localDateKey, type Project, type TaskItem } from "@/lib/storage";
 
 export type WorkspaceMode = "standard" | "sport";
-type ModeProject = Project & { mode?: WorkspaceMode; waiting?: boolean; waitingSince?: string };
+type ModeProject = Project & { mode?: WorkspaceMode };
 type ProjectTask = TaskItem & { projectPaused?: boolean; projectPausedWasWaiting?: boolean };
 
 type Props = {
@@ -24,84 +25,91 @@ export default function ProjectsPanel({
   onChange,
   onTasksChange,
 }: Props) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const lockedProjects = projects.map(project => ({ ...project, mode: workspaceMode }) as ModeProject);
-  const handleChange = (next: Project[]) => onChange(next.map(project => ({ ...project, mode: workspaceMode }) as ModeProject));
+  const handleChange = (next: Project[]) =>
+    onChange(next.map(project => ({ ...project, mode: workspaceMode }) as ModeProject));
 
-  const toggleProjectWaiting = (projectId: string) => {
-    const project = lockedProjects.find(item => item.id === projectId);
-    if (!project) return;
-    const pause = !project.waiting;
+  const isProjectPaused = (projectId: string) =>
+    tasks.some(task => task.projectId === projectId && (task as ProjectTask).projectPaused);
 
-    onChange(
-      lockedProjects.map(item =>
-        item.id === projectId
-          ? ({
-              ...item,
-              waiting: pause || undefined,
-              waitingSince: pause ? localDateKey() : undefined,
-              mode: workspaceMode,
-            } as ModeProject)
-          : item,
-      ),
-    );
+  const toggleProjectPause = (projectId: string) => {
+    if (!onTasksChange) return;
+    const pause = !isProjectPaused(projectId);
+    const today = localDateKey();
 
-    if (onTasksChange) {
-      onTasksChange(
-        tasks.map(task => {
-          if (task.projectId !== projectId) return task;
-          const marked = task as ProjectTask;
-          if (pause) {
-            return {
-              ...task,
-              waiting: true,
-              waitingSince: task.waitingSince ?? localDateKey(),
-              todayDate: undefined,
-              projectPaused: true,
-              projectPausedWasWaiting: !!task.waiting,
-            } as ProjectTask;
-          }
-          if (!marked.projectPaused) return task;
+    onTasksChange(
+      tasks.map(task => {
+        if (task.projectId !== projectId) return task;
+        const marked = task as ProjectTask;
+        if (pause) {
           return {
             ...task,
-            waiting: marked.projectPausedWasWaiting || false,
-            waitingSince: marked.projectPausedWasWaiting ? task.waitingSince : undefined,
-            projectPaused: undefined,
-            projectPausedWasWaiting: undefined,
+            waiting: true,
+            waitingSince: task.waitingSince ?? today,
+            todayDate: undefined,
+            capacityOverrideDate: undefined,
+            projectPaused: true,
+            projectPausedWasWaiting: !!task.waiting,
           } as ProjectTask;
-        }),
-      );
-    }
+        }
+        if (!marked.projectPaused) return task;
+        return {
+          ...task,
+          waiting: marked.projectPausedWasWaiting || false,
+          waitingSince: marked.projectPausedWasWaiting ? task.waitingSince : undefined,
+          projectPaused: undefined,
+          projectPausedWasWaiting: undefined,
+          todayDate: undefined,
+          capacityOverrideDate: undefined,
+        } as ProjectTask;
+      }),
+    );
   };
 
-  return (
-    <div className={`workspace-mode-locked workspace-mode-${workspaceMode}`}>
-      {lockedProjects.length > 0 && (
-        <div className="mb-5 rounded-xl border border-white/10 bg-panel px-4 py-3">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-[9px] font-mono uppercase tracking-[.18em] text-muted">Sous-projets</p>
-            <p className="text-[9px] text-muted">Pause = aucune action proposée par IBES</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {lockedProjects.filter(project => !project.done).map(project => (
-              <button
-                key={project.id}
-                type="button"
-                onClick={() => toggleProjectWaiting(project.id)}
-                className="rounded-full border px-3 py-1.5 text-[10px] font-mono transition"
-                style={{
-                  borderColor: project.waiting ? accentColor : "rgba(255,255,255,.12)",
-                  color: project.waiting ? accentColor : undefined,
-                  opacity: project.waiting ? 1 : .72,
-                }}
-                title={project.waiting ? "Reprendre ce sous-projet" : "Mettre ce sous-projet en attente"}
-              >
-                {project.waiting ? "▶ Reprendre" : "Ⅱ Pause"} · {project.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !onTasksChange) return;
 
+    const installPauseItems = () => {
+      const articles = Array.from(root.querySelectorAll("article"));
+      articles.forEach((article, index) => {
+        const project = lockedProjects[index];
+        if (!project) return;
+        const menus = Array.from(article.querySelectorAll("div.absolute"));
+        const projectMenu = menus.find(menu => menu.textContent?.includes("Supprimer le projet"));
+        if (!projectMenu) return;
+
+        let button = projectMenu.querySelector<HTMLButtonElement>("[data-project-pause]");
+        if (!button) {
+          button = document.createElement("button");
+          button.type = "button";
+          button.dataset.projectPause = project.id;
+          button.className = "w-full px-3 py-2 text-left text-xs text-muted";
+          const deleteButton = Array.from(projectMenu.querySelectorAll("button")).find(el =>
+            el.textContent?.includes("Supprimer le projet"),
+          );
+          if (deleteButton) projectMenu.insertBefore(button, deleteButton);
+          else projectMenu.appendChild(button);
+        }
+
+        button.textContent = isProjectPaused(project.id) ? "Reprendre le sous-projet" : "Mettre en attente";
+        button.onclick = event => {
+          event.preventDefault();
+          event.stopPropagation();
+          toggleProjectPause(project.id);
+        };
+      });
+    };
+
+    installPauseItems();
+    const observer = new MutationObserver(installPauseItems);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [lockedProjects, tasks, onTasksChange]);
+
+  return (
+    <div ref={rootRef} className={`workspace-mode-locked workspace-mode-${workspaceMode}`}>
       <ProjectsPanelV2
         accentColor={accentColor}
         projects={lockedProjects}
