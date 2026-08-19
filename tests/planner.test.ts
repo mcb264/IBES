@@ -65,4 +65,12 @@ const converted = withWorkspaceMode({...normalized[0],state:{...normalized[0].st
 assert.equal(converted.mode, "sport", "an existing workspace can be converted to Sport");
 assert.ok(converted.state.projects.every((project) => project.mode === "sport"), "Sport conversion keeps subproject modes coherent");
 
+values.set("ibes:custom-workspaces", JSON.stringify([
+  { id: "legacy-run", name: "Semi Marathon", state: { briefing: { date: localDateKey(), tasks: [] }, projects: [{ id: "training", name: "Préparation", goal: "", done: false }] } },
+  { id: "legacy-esport", name: "Esport", state: { briefing: { date: localDateKey(), tasks: [] }, projects: [] } },
+]));
+const migratedModes = loadCustomWorkspaces();
+assert.equal(migratedModes.find((workspace) => workspace.id === "legacy-run")?.mode, "sport", "legacy physical-sport workspaces migrate automatically");
+assert.equal(migratedModes.find((workspace) => workspace.id === "legacy-esport")?.mode, undefined, "Esport is not misclassified as physical Sport");
+
 console.log("planner tests passed");
