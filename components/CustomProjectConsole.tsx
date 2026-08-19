@@ -1,7 +1,7 @@
 "use client";
 import { useEffect,useState } from "react";
 import Link from "next/link";
-import {CustomWorkspace,emptyReviewDraft,loadCustomWorkspaces,saveCustomWorkspace} from "@/lib/storage";
+import {CustomWorkspace,emptyReviewDraft,loadCustomWorkspaces,saveCustomWorkspace,saveCustomWorkspaces,withWorkspaceMode} from "@/lib/storage";
 import {workspaceColor} from "@/lib/workspaceColors";
 import ReviewPanel from "@/components/ReviewPanel";
 import ProjectsPanel,{type WorkspaceMode} from "@/components/ProjectsPanel";
@@ -17,6 +17,7 @@ export default function CustomProjectConsole({id}:{id:string}){
   const color=workspaceColor(workspace);
   const workspaceMode=workspace.mode??"standard";
   const setState=(updater:(s:CustomWorkspace["state"])=>CustomWorkspace["state"])=>{const state=updater(workspace.state);setWorkspace({...workspace,state});saveCustomWorkspace(id,state)};
+  const toggleWorkspaceMode=()=>{const mode=workspaceMode==="sport"?"standard":"sport";const updated=withWorkspaceMode(workspace,mode);setWorkspace(updated);saveCustomWorkspaces(loadCustomWorkspaces().map(item=>item.id===id?updated:item));window.dispatchEvent(new Event("ibes:workspaces-changed"))};
 
   return <main className="min-h-screen flex flex-col bg-[#0b0f12]">
     <header className="sticky top-0 z-40 border-b bg-[#0b0f12]/95 backdrop-blur px-5 sm:px-8 py-4" style={{borderColor:`${color}26`}}>
@@ -31,7 +32,7 @@ export default function CustomProjectConsole({id}:{id:string}){
             <p className="mt-0.5 text-[9px] font-mono uppercase tracking-[.18em] text-muted">Grand projet</p>
           </div>
         </div>
-        <span className="hidden sm:block text-[10px] font-mono uppercase tracking-[.16em] text-muted">IBES — Système de pilotage</span>
+        <button type="button" onClick={toggleWorkspaceMode} className="rounded-full border border-white/10 px-3 py-1.5 text-[9px] font-mono uppercase tracking-[.12em] text-muted hover:text-ink">{workspaceMode==="sport"?"Mode Sport":"Passer en Sport"}</button>
       </div>
     </header>
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createCustomWorkspace, loadCustomWorkspaces, saveCustomWorkspaces, type CustomWorkspace, type WorkspaceMode } from "@/lib/storage";
+import { createCustomWorkspace, loadCustomWorkspaces, saveCustomWorkspaces, withWorkspaceMode, type CustomWorkspace, type WorkspaceMode } from "@/lib/storage";
 import { WORKSPACE_COLORS, workspaceColor, withWorkspaceColor } from "@/lib/workspaceColors";
 
 export default function CustomWorkspaceCards() {
@@ -21,6 +21,13 @@ export default function CustomWorkspaceCards() {
 
   const setColor = (id:string,color:string) => {
     const next=loadCustomWorkspaces().map(workspace=>workspace.id===id?withWorkspaceColor(workspace,color):workspace);
+    saveCustomWorkspaces(next);
+    setItems(next);
+    window.dispatchEvent(new Event("ibes:workspaces-changed"));
+  };
+
+  const setMode = (id:string,mode:WorkspaceMode) => {
+    const next=loadCustomWorkspaces().map(workspace=>workspace.id===id?withWorkspaceMode(workspace,mode):workspace);
     saveCustomWorkspaces(next);
     setItems(next);
     window.dispatchEvent(new Event("ibes:workspaces-changed"));
@@ -54,7 +61,7 @@ export default function CustomWorkspaceCards() {
       return <div key={workspace.id} className="relative min-h-[260px] rounded-2xl border bg-panel overflow-hidden transition-colors hover:border-white/25" style={{borderColor:`${color}55`}}>
         <div className="absolute left-0 top-0 bottom-0 w-1" style={{backgroundColor:color}}/>
         <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
-          {mode==="sport"&&<span className="rounded-full border border-white/10 bg-graphite/90 px-2 py-1 text-[9px] font-mono uppercase" style={{color}}>Sport</span>}
+          <button type="button" onClick={()=>setMode(workspace.id,mode==="sport"?"standard":"sport")} className="rounded-full border border-white/10 bg-graphite/90 px-2 py-1 text-[9px] font-mono uppercase text-muted hover:text-ink" title={mode==="sport"?"Sortir du mode Sport":"Passer ce projet en mode Sport"}>{mode==="sport"?"Sport":"Standard"}</button>
           <input aria-label={`Couleur de ${workspace.name}`} title="Changer la couleur du projet" type="color" value={color} onChange={e=>setColor(workspace.id,e.target.value)} className="h-6 w-6 cursor-pointer rounded-full border-0 bg-transparent p-0" />
         </div>
         <Link href={`/projet/${workspace.id}`} className="group h-full min-h-[260px] p-6 pr-20 flex flex-col">
