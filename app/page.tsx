@@ -26,11 +26,12 @@ export default function Home(){
  const completeLife=(id:string)=>saveLife({...life,briefing:{...life.briefing,tasks:life.briefing.tasks.map(t=>t.id===id?{...t,done:true}:t)}});
  const renameLife=(id:string)=>{const text=editingLifeText.trim();if(text)saveLife({...life,briefing:{...life.briefing,tasks:life.briefing.tasks.map(t=>t.id===id?{...t,text}:t)}});setEditingLifeId(null);setEditingLifeText("")};
  const today=localDateKey();
- const deadlines=loadCustomWorkspaces().flatMap(w=>w.state.projects.filter(p=>!p.done&&p.dueDate&&p.dueDate>=today).map(p=>({...p,workspace:w.name,href:`/projet/${w.id}`}))).sort((a,b)=>a.dueDate!.localeCompare(b.dueDate!)).slice(0,4);
+ const workspaces=loadCustomWorkspaces();
+ const deadlines=workspaces.flatMap(w=>w.state.projects.filter(p=>!p.done&&p.dueDate&&p.dueDate>=today).map(p=>({...p,workspace:w.name,href:`/projet/${w.id}`}))).sort((a,b)=>a.dueDate!.localeCompare(b.dueDate!)).slice(0,4);
  return <main className="min-h-screen"><FlowMode active={flow} onExit={()=>setFlow(false)}/><header className="border-b border-white/10 px-6 py-5 flex justify-between"><div><h1 className="font-display text-3xl">IBES</h1><p className="text-xs text-muted font-mono uppercase tracking-widest">console personnelle</p></div><div className="flex items-center gap-2"><Link href="/historique" className="text-xs font-mono uppercase text-muted mr-2">Historique</Link><Link href="/reglages" className="text-xs font-mono uppercase text-muted mr-2">Réglages</Link><ModeRougeSwitch active={modeRouge} onToggle={toggleDown}/><button onClick={toggleFlow} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border font-mono text-[11px] uppercase tracking-widest transition-colors ${flow?"border-teal text-teal bg-teal/10":"border-white/15 text-muted hover:text-ink"}`}><span className={`w-2 h-2 rounded-full ${flow?"bg-teal animate-pulse":"bg-muted"}`}/>↑ Flow</button></div></header>
  <section className="px-6 py-8 max-w-5xl mx-auto space-y-9">
  <DailyPlan down={modeRouge} settings={settings} onCapacity={l=>{chooseCapacity(l);refresh()}}/>
- <SportHomeBox/>
+ <SportHomeBox workspaces={workspaces}/>
  <ReviewReady/>
  {insight&&<div className="rounded-lg border border-cyan/30 bg-cyan/5 p-5"><p className="font-display text-lg text-cyan">IBES a remarqué quelque chose</p><p className="text-sm mt-2">Sur {insight.sampleSize} journées comparables : {insight.averagePlanned} pts prévus, {insight.averageCompleted} absorbés. Réglage actuel {insight.configured}, suggestion {insight.suggested}.</p><div className="flex gap-3 mt-3"><Link href="/reglages" className="text-xs text-cyan">Ouvrir les réglages</Link><button onClick={()=>{dismissLoadInsight(insight.signature);setInsight(null)}} className="text-xs text-muted">Compris</button></div></div>}
  <div><p className="font-mono text-[11px] text-muted uppercase mb-4">Projets</p><div className="grid md:grid-cols-2 gap-5"><CustomWorkspaceCards/></div></div>

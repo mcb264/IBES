@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import {
-  loadCustomWorkspaces,
   recurringComplete,
   recurringProgress,
   type CustomWorkspace,
@@ -35,41 +33,28 @@ function activePhase(workspace: CustomWorkspace, tasks: TaskItem[]): Project | u
     });
 }
 
-export default function SportHomeBox() {
-  const [workspaces, setWorkspaces] = useState<SportWorkspace[]>([]);
+export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspace[] }) {
+  const sportWorkspaces = workspaces.filter(
+    (workspace) =>
+      (workspace as SportWorkspace).mode === "sport" ||
+      workspace.state.projects.some((project) => (project as Project & { mode?: string }).mode === "sport") ||
+      workspace.state.briefing.tasks.some((task) => !!(task as SportTask).sportSteps?.length),
+  ) as SportWorkspace[];
 
-  const refresh = () => {
-    setWorkspaces(
-      loadCustomWorkspaces().filter(
-        (workspace) => (workspace as SportWorkspace).mode === "sport",
-      ) as SportWorkspace[],
-    );
-  };
-
-  useEffect(() => {
-    refresh();
-    window.addEventListener("focus", refresh);
-    window.addEventListener("ibes:workspaces-changed", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("ibes:workspaces-changed", refresh);
-    };
-  }, []);
-
-  if (workspaces.length === 0) return null;
+  if (sportWorkspaces.length === 0) return null;
 
   return (
     <section>
       <div className="mb-3 flex items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-widest text-muted">Sport</p>
-          <p className="mt-1 text-xs text-muted">Ta progression sportive sans la mélanger à la charge du Programme perso.</p>
+          <p className="font-mono text-[11px] uppercase tracking-widest text-muted">Programme Sport</p>
+          <p className="mt-1 text-xs text-muted">Objectif à part · hors calcul de charge du Programme perso.</p>
         </div>
-        <span className="text-[10px] font-mono uppercase text-muted">{workspaces.length} projet{workspaces.length > 1 ? "s" : ""}</span>
+        <span className="text-[10px] font-mono uppercase text-muted">{sportWorkspaces.length} projet{sportWorkspaces.length > 1 ? "s" : ""}</span>
       </div>
 
       <div className="space-y-3">
-        {workspaces.map((workspace) => {
+        {sportWorkspaces.map((workspace) => {
           const tasks = workspace.state.briefing.tasks;
           const phase = activePhase(workspace, tasks);
           const phaseTasks = phase ? tasks.filter((task) => task.projectId === phase.id) : tasks;
@@ -78,13 +63,10 @@ export default function SportHomeBox() {
           );
           const recurring = usableTasks.filter((task) => !!task.recurringTarget);
           const weeklyTarget = recurring.reduce((sum, task) => sum + recurringProgress(task).target, 0);
-          const weeklyDone = recurring.reduce(
-            (sum, task) => {
-              const progress = recurringProgress(task);
-              return sum + Math.min(progress.count, progress.target);
-            },
-            0,
-          );
+          const weeklyDone = recurring.reduce((sum, task) => {
+            const progress = recurringProgress(task);
+            return sum + Math.min(progress.count, progress.target);
+          }, 0);
           const nextTask = usableTasks.find((task) => !task.recurringTarget || !recurringComplete(task));
           const nextStep = nextTask ? currentSportStep(nextTask) : null;
           const color = workspaceColor(workspace);
@@ -127,7 +109,7 @@ export default function SportHomeBox() {
                         {nextStep && <p className="mt-1 text-[10px] font-mono uppercase text-muted">{nextTask.text} · séance {nextStep.index + 1}/{nextStep.total}</p>}
                       </div>
                     ) : (
-                      <p className="mt-2 text-sm" style={{ color }}>Semaine sportive terminée ✓</p>
+                      <p className="mt-2 text-sm" style={{ color }}>Aucune séance active pour cette phase.</p>
                     )}
                   </div>
 
