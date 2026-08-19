@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import ProjectsPanelV2 from "./ProjectsPanelV2";
 import { localDateKey, type Project, type TaskItem } from "@/lib/storage";
 
@@ -67,49 +67,56 @@ export default function ProjectsPanel({
     );
   };
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || !onTasksChange) return;
+  const installPauseItemForArticle = (article: HTMLElement, project: ModeProject) => {
+    const projectMenu = Array.from(article.querySelectorAll<HTMLElement>("div.absolute"))
+      .find(menu => menu.textContent?.includes("Supprimer le projet"));
+    if (!projectMenu) return;
 
-    const installPauseItems = () => {
-      const articles = Array.from(root.querySelectorAll("article"));
-      articles.forEach((article, index) => {
-        const project = lockedProjects[index];
-        if (!project) return;
-        const menus = Array.from(article.querySelectorAll("div.absolute"));
-        const projectMenu = menus.find(menu => menu.textContent?.includes("Supprimer le projet"));
-        if (!projectMenu) return;
+    let button = projectMenu.querySelector<HTMLButtonElement>("[data-project-pause]");
+    if (!button) {
+      button = document.createElement("button");
+      button.type = "button";
+      button.dataset.projectPause = project.id;
+      button.className = "w-full px-3 py-2 text-left text-xs text-muted";
+      const deleteButton = Array.from(projectMenu.querySelectorAll("button"))
+        .find(el => el.textContent?.includes("Supprimer le projet"));
+      if (deleteButton) projectMenu.insertBefore(button, deleteButton);
+      else projectMenu.appendChild(button);
+    }
 
-        let button = projectMenu.querySelector<HTMLButtonElement>("[data-project-pause]");
-        if (!button) {
-          button = document.createElement("button");
-          button.type = "button";
-          button.dataset.projectPause = project.id;
-          button.className = "w-full px-3 py-2 text-left text-xs text-muted";
-          const deleteButton = Array.from(projectMenu.querySelectorAll("button")).find(el =>
-            el.textContent?.includes("Supprimer le projet"),
-          );
-          if (deleteButton) projectMenu.insertBefore(button, deleteButton);
-          else projectMenu.appendChild(button);
-        }
-
-        button.textContent = isProjectPaused(project.id) ? "Reprendre le sous-projet" : "Mettre en attente";
-        button.onclick = event => {
-          event.preventDefault();
-          event.stopPropagation();
-          toggleProjectPause(project.id);
-        };
-      });
+    button.textContent = isProjectPaused(project.id)
+      ? "Reprendre le sous-projet"
+      : "Mettre en attente";
+    button.onpointerdown = event => event.stopPropagation();
+    button.onclick = event => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleProjectPause(project.id);
     };
+  };
 
-    installPauseItems();
-    const observer = new MutationObserver(installPauseItems);
-    observer.observe(root, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [lockedProjects, tasks, onTasksChange]);
+  const handleRootClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    const menuButton = target.closest("button");
+    if (!menuButton || menuButton.textContent?.trim() !== "•••") return;
+
+    const article = menuButton.closest("article") as HTMLElement | null;
+    const root = rootRef.current;
+    if (!article || !root) return;
+    const articles = Array.from(root.querySelectorAll<HTMLElement>("article"));
+    const index = articles.indexOf(article);
+    const project = lockedProjects[index];
+    if (!project) return;
+
+    window.setTimeout(() => installPauseItemForArticle(article, project), 0);
+  };
 
   return (
-    <div ref={rootRef} className={`workspace-mode-locked workspace-mode-${workspaceMode}`}>
+    <div
+      ref={rootRef}
+      onClickCapture={handleRootClickCapture}
+      className={`workspace-mode-locked workspace-mode-${workspaceMode}`}
+    >
       <ProjectsPanelV2
         accentColor={accentColor}
         projects={lockedProjects}
