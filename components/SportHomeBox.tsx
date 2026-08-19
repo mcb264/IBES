@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import {
+  completeRecurringTask,
+  localDateKey,
   recurringProgress,
+  saveCustomWorkspace,
   type CustomWorkspace,
   type TaskItem,
 } from "@/lib/storage";
@@ -25,6 +28,27 @@ export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspa
   );
 
   if (sportWorkspaces.length === 0) return null;
+
+  const completeTask = (workspace: CustomWorkspace, task: TaskItem) => {
+    const today = localDateKey();
+    const recurring = !!task.recurringTarget;
+    const completedTask = recurring
+      ? completeRecurringTask(task, today)
+      : { ...task, done: true, todayDate: undefined, capacityOverrideDate: undefined };
+    const completionId = recurring ? `${task.id}:${today}:${(task.recurringCount ?? 0) + 1}` : task.id;
+    const completedThisWeek = workspace.state.completedThisWeek.some((item) => item.id === completionId)
+      ? workspace.state.completedThisWeek
+      : [...workspace.state.completedThisWeek, { id: completionId, text: task.text, date: today, kind: "task" as const }];
+    saveCustomWorkspace(workspace.id, {
+      ...workspace.state,
+      completedThisWeek,
+      briefing: {
+        ...workspace.state.briefing,
+        tasks: workspace.state.briefing.tasks.map((item) => item.id === task.id ? completedTask : item),
+      },
+    });
+    window.dispatchEvent(new Event("ibes:workspaces-changed"));
+  };
 
   return (
     <section>
@@ -50,10 +74,9 @@ export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspa
           const percent = weeklyTarget > 0 ? Math.min(100, Math.round((weeklyDone / weeklyTarget) * 100)) : 0;
 
           return (
-            <Link
+            <article
               key={workspace.id}
-              href={`/projet/${workspace.id}`}
-              className="group block overflow-hidden rounded-2xl border bg-panel/80 transition hover:border-white/25"
+              className="group overflow-hidden rounded-2xl border bg-panel/80 transition hover:border-white/25"
               style={{ borderColor: `${color}55` }}
             >
               <div className="h-1 w-full" style={{ backgroundColor: color }} />
@@ -61,14 +84,14 @@ export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspa
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-display text-2xl" style={{ color }}>{workspace.name}</h2>
+                      <Link href={`/projet/${workspace.id}`} className="font-display text-2xl hover:underline" style={{ color }}>{workspace.name}</Link>
                       {phase && <span className="rounded-full border border-white/10 px-2 py-1 text-[9px] font-mono uppercase text-muted">{phase.name}</span>}
                     </div>
                     <p className="mt-1 text-[10px] font-mono uppercase tracking-widest text-muted">
                       {weeklyTarget > 0 ? `${weeklyDone}/${weeklyTarget} séances cette semaine` : "Programme sportif"}
                     </p>
                   </div>
-                  <span className="text-muted transition group-hover:text-ink">→</span>
+                  <Link href={`/projet/${workspace.id}`} aria-label={`Ouvrir ${workspace.name}`} className="text-muted transition group-hover:text-ink">→</Link>
                 </div>
 
                 {weeklyTarget > 0 && (
@@ -84,9 +107,10 @@ export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspa
                       <div className="mt-2 space-y-2">
                         {usableTasks.slice(0, 3).map((task) => {
                           const step = currentSportStep(task);
-                          return <div key={task.id}>
-                            <p className="text-base leading-snug">{step?.label ?? task.text}</p>
-                            {step && <p className="mt-0.5 text-[10px] font-mono uppercase text-muted">{task.text} · séance {step.index + 1}/{step.total}</p>}
+                          return <div key={task.id} className="flex items-start gap-3">
+                            <button type="button" onClick={()=>completeTask(workspace,task)} aria-label={`Terminer ${task.text}`} className="mt-0.5 h-5 w-5 shrink-0 rounded border border-white/25 text-transparent hover:border-teal hover:text-teal">✓</button>
+                            <div><p className="text-base leading-snug">{step?.label ?? task.text}</p>
+                            {step && <p className="mt-0.5 text-[10px] font-mono uppercase text-muted">{task.text} · séance {step.index + 1}/{step.total}</p>}</div>
                           </div>;
                         })}
                         {usableTasks.length > 3 && <p className="text-[10px] text-muted">+ {usableTasks.length - 3} autre{usableTasks.length - 3 > 1 ? "s" : ""}</p>}
@@ -106,7 +130,7 @@ export default function SportHomeBox({ workspaces }: { workspaces: CustomWorkspa
                   )}
                 </div>
               </div>
-            </Link>
+            </article>
           );
         })}
       </div>
