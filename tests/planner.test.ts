@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { buildDailyProposal, buildDownProposal, PlannerSource } from "../lib/planner";
+import { selectActiveSportTasks } from "../lib/sportHome";
 import { DEFAULT_LOAD_SETTINGS, TaskItem, loadCustomWorkspaces, localDateKey } from "../lib/storage";
 
 const today = "2026-08-16";
@@ -49,5 +50,15 @@ assert.deepEqual(normalized[0].state.dump, [], "missing inbox collections are re
 assert.equal(normalized[0].state.briefing.date, localDateKey(), "custom workspaces roll over to the current day");
 assert.equal(normalized[0].state.briefing.tasks[0].todayDate, undefined, "daily task selection is cleared during rollover");
 assert.equal(normalized[0].state.completedThisWeek.length, 0, "stale completions do not leak into the current week");
+
+const sportSelection = selectActiveSportTasks(
+  [
+    { id: "empty", name: "Phase vide", goal: "", done: false, order: 0 },
+    { id: "active", name: "Phase active", goal: "", done: false, order: 1 },
+  ],
+  [{ id: "session", text: "Fractionné", done: false, projectId: "active" }],
+);
+assert.equal(sportSelection.phase?.id, "active", "sport home skips empty phases and selects the phase with active work");
+assert.deepEqual(sportSelection.tasks.map((task) => task.id), ["session"], "sport home exposes active sessions from the selected phase");
 
 console.log("planner tests passed");
