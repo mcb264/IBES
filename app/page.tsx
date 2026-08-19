@@ -10,6 +10,7 @@ import CustomWorkspaceCards from "@/components/CustomWorkspaceCards";
 import FlowMode from "@/components/FlowMode";
 import ReviewReady from "@/components/ReviewReady";
 import DailyPlan from "@/components/DailyPlan";
+import SportHomeBox from "@/components/SportHomeBox";
 
 export default function Home(){
  const[modeRouge,setModeRouge]=useState(false),[flow,setFlow]=useState(false),[life,setLife]=useState<DomainState|null>(null),[capacity,setCapacity]=useState<CapacityLevel|null>(null),[settings,setSettings]=useState<LoadSettings|null>(null),[insight,setInsight]=useState<LoadInsight|null>(null),[addingLife,setAddingLife]=useState(false),[lifeText,setLifeText]=useState(""),[editingLifeId,setEditingLifeId]=useState<string|null>(null),[editingLifeText,setEditingLifeText]=useState("");
@@ -29,6 +30,7 @@ export default function Home(){
  return <main className="min-h-screen"><FlowMode active={flow} onExit={()=>setFlow(false)}/><header className="border-b border-white/10 px-6 py-5 flex justify-between"><div><h1 className="font-display text-3xl">IBES</h1><p className="text-xs text-muted font-mono uppercase tracking-widest">console personnelle</p></div><div className="flex items-center gap-2"><Link href="/historique" className="text-xs font-mono uppercase text-muted mr-2">Historique</Link><Link href="/reglages" className="text-xs font-mono uppercase text-muted mr-2">Réglages</Link><ModeRougeSwitch active={modeRouge} onToggle={toggleDown}/><button onClick={toggleFlow} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border font-mono text-[11px] uppercase tracking-widest transition-colors ${flow?"border-teal text-teal bg-teal/10":"border-white/15 text-muted hover:text-ink"}`}><span className={`w-2 h-2 rounded-full ${flow?"bg-teal animate-pulse":"bg-muted"}`}/>↑ Flow</button></div></header>
  <section className="px-6 py-8 max-w-5xl mx-auto space-y-9">
  <DailyPlan down={modeRouge} settings={settings} onCapacity={l=>{chooseCapacity(l);refresh()}}/>
+ <SportHomeBox/>
  <ReviewReady/>
  {insight&&<div className="rounded-lg border border-cyan/30 bg-cyan/5 p-5"><p className="font-display text-lg text-cyan">IBES a remarqué quelque chose</p><p className="text-sm mt-2">Sur {insight.sampleSize} journées comparables : {insight.averagePlanned} pts prévus, {insight.averageCompleted} absorbés. Réglage actuel {insight.configured}, suggestion {insight.suggested}.</p><div className="flex gap-3 mt-3"><Link href="/reglages" className="text-xs text-cyan">Ouvrir les réglages</Link><button onClick={()=>{dismissLoadInsight(insight.signature);setInsight(null)}} className="text-xs text-muted">Compris</button></div></div>}
  <div><p className="font-mono text-[11px] text-muted uppercase mb-4">Projets</p><div className="grid md:grid-cols-2 gap-5"><CustomWorkspaceCards/></div></div>
